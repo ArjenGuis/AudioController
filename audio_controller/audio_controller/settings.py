@@ -75,7 +75,7 @@ def psalmbord_as_html() -> str:
     for regel in psalmbord.regels:
         txt = regel['text'].strip()
         col = txt.split(":")
-        if len(i) > 1:
+        if len(col) > 1:
             content = "<span class='col1'>"
             for col1 in col[0].strip():
                 if col1.trim() != "":
