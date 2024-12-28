@@ -77,16 +77,16 @@ def psalmbord_as_html() -> str:
         col = txt.split(":")
         if len(col) > 1:
             content = "<span class='col1'>"
-            for col1 in col[0].strip():
-                if col1.trim() != "":
+            for col1 in col[0]:
+                if col1.strip() != "":
                     f"<span>{col1}</span>"
             content = "</span>"
 
             content += "<span class='col2'>:</span>"
 
             content += "<span class='col3'>"
-            for col3 in col[1].strip():
-                if col3.trim() != "":
+            for col3 in col[1]:
+                if col3.strip() != "":
                     f"<span>{col3}</span>"
             content += "</span>"
         else:
