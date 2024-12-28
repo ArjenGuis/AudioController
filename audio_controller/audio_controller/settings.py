@@ -76,15 +76,15 @@ def psalmbord_as_html() -> str:
         txt = regel['text'].strip()
         col = txt.split(":")
         if len(i) > 1:
-            content = f"<span class='col1'>"
+            content = "<span class='col1'>"
             for col1 in col[0].strip():
                 if col1.trim() != "":
                     f"<span>{col1}</span>"
-            content = f"</span>"
+            content = "</span>"
 
-            content += f"<span class='col2'>:</span>"
+            content += "<span class='col2'>:</span>"
 
-            content += f"<span class='col3'>"
+            content += "<span class='col3'>"
             for col3 in col[1].strip():
                 if col3.trim() != "":
                     f"<span>{col3}</span>"
