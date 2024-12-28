@@ -120,7 +120,7 @@ class Psalmbord(tornado.web.RequestHandler):
         if settings.settings.enable_psalmbord:
             fs = settings.psalmbord.fontsize
             fw = settings.psalmbord.fontweight
-            css = f".font_size {{ font-size: {fs}vh; }} \n .font_weight {{ font-weight: {fw}; }}"
+            css = f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
             self.render("psalmbord.html", css=css)
         else:
             html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""

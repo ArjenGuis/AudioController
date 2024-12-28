@@ -26,7 +26,7 @@ def frange(start: float, stop: float, step: float):
 
 
 # copied from fonts.py
-fontsizes = list(frange(4, 9, 0.5))
+fontsizes = list(frange(5, 15, 1))
 
 # copied from fonts.py
 fontweights = list(range(300, 900, 100))
@@ -138,7 +138,7 @@ class Page(ElementWrapper):
                 E('div').attr('class', '{}'.format(width_2)).append(select_fontfamily)
             ),
             E('div').attr('class', 'form-group row').append(
-                E('label').attr('class', '{} col-form-label'.format(width_1)).inner_html("Letter grootte"),
+                E('label').attr('class', '{} col-form-label'.format(width_1)).inner_html("Aantal regels"),
                 E('div').attr('class', '{}'.format(width_2)).append(select_fontsize)
             ),
             E('div').attr('class', 'form-group row').append(
