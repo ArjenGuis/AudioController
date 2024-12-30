@@ -69,15 +69,16 @@ class Psalmbord:
 def psalmbord_as_html() -> str:
     """ Create a html string to display the psalmbord in the browser """
     if psalmbord.title.strip() != "":
-        r = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>\n"
+        content = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>\n"
     else:
-        r = ""
+        content = ""
     
     for regel in psalmbord.regels:
-        txt = regel['text'].strip()
-        col = txt.split(":")
+        content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
+
+        col = regel['text'].strip().split(":")
         if len(col) > 1:
-            content = "\n\t<span class='col1'>"
+            content += "\n\t<span class='col1'>"
             for col1 in col[0].split(" "):
                 if col1.strip() != "":
                     content += f"<span>{col1}</span>"
@@ -91,9 +92,9 @@ def psalmbord_as_html() -> str:
                     content += f"<span>{col3}</span>"
             content += "</span>\n"
         else:
-            content = txt.replace(";",":")
-        r += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>{content}</div>\n"
-    return r
+            content = regel['text'].strip().replace(";",":")
+        content += "</div>\n"
+    return content
 
 
 def default_sources():
