@@ -68,16 +68,19 @@ class Psalmbord:
 
 def psalmbord_as_html() -> str:
     """ Create a html string to display the psalmbord in the browser """
+    # title
     if psalmbord.title.strip() != "":
         content = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>\n"
     else:
         content = ""
     
+    # regels
     for regel in psalmbord.regels:
         content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
 
         col = regel['text'].strip().split(":")
         if len(col) > 1:
+            # regel with three columns
             content += "\n\t<span class='col1'>"
             for col1 in col[0].split(" "):
                 if col1.strip() != "":
@@ -92,7 +95,10 @@ def psalmbord_as_html() -> str:
                     content += f"<span>{col3}</span>"
             content += "</span>\n"
         else:
-            content = regel['text'].strip().replace(";",":")
+            # regel without columns
+            """ replace optional ";" with ":" to prevent splitting and alignment """
+            content += regel['text'].strip().replace(";",":")
+        
         content += "</div>\n"
     return content
 
