@@ -30,7 +30,7 @@ def frange(start: float, stop: float, step: float):
 
 
 # ON CHANGE, ALSO CHANGE page_psalmbord.py (client side code)
-fontsizes = list(frange(5, 15, 1))
+fontsizes = list(range(5, 16))
 fontweights = list(range(300, 900, 100))
 
 def validate_font_name(font_name: str, raise_exc=False):

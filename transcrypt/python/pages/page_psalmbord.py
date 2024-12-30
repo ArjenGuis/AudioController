@@ -26,7 +26,7 @@ def frange(start: float, stop: float, step: float):
 
 
 # copied from fonts.py
-fontsizes = list(frange(5, 15, 1))
+fontsizes = list(range(5, 16))
 
 # copied from fonts.py
 fontweights = list(range(300, 900, 100))
