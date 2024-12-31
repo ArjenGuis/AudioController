@@ -16,28 +16,6 @@
     <script src="/static/js/jquery-ui.min.js"></script>
     <script src="/static/js/bootstrap-4.1.3-dist/js/bootstrap.bundle.js"></script>
     <script src="/static/js/bootstrap-toggle.min.js"></script>
-    <script type="text/javascript">
-        $psalmbord = $(".container");
-
-        // bereken per regel de resterende breedte van kolom 3
-        $psalmbord.find(".regel").each(function($row, $element){
-            var $regel = $(this).innerWidth();
-            var $col2 = $($element).find(".col2").outerWidth();
-            
-            // breedte van col1 en col3 instellen, mits er een col2 bestaat
-            if( $col2 !== null ){
-                var $col1 = $($element).find(".col1").outerWidth();
-                var $half = ($regel / 2) - ($col2 / 2) - 0.2;
-
-                if( $col1 < $half ){
-                    $($element).find(".col1, .col3").css("width", $half);
-                } else {
-                    var $col3 = $regel - $col1 - $col2 - 1;
-                    $($element).find(".col3").css("width", $col3);
-                }
-            }
-        });
-    </script>
 </head>
 
 <body>
@@ -62,6 +40,8 @@
         container.empty()
         container.append($(psalmbord_html))
 
+        alignment()
+
         setTimeout(update, interval)
     }
 
@@ -78,6 +58,28 @@
             success: success,
             error: error,
             contentType: "application/json; charset=utf-8",
+        })
+    }
+
+    function alignment(){
+        // bereken per regel de resterende breedte van kolom 3
+        container.find(".regel").each(function(){
+            var regel = $(this).innerWidth()
+            var col2 = $(this).find(".col2").outerWidth()
+            
+            // breedte van col1 en col3 instellen, mits er een col2 bestaat
+            if( col2 !== null ){
+                var col1 = $(this).find(".col1").outerWidth()
+                var half = (regel / 2) - (col2 / 2) - 0.2
+
+                if( col1 < half ){
+                    // beide kolommen even breed
+                    $(this).find(".col1, .col3").css("width", half)
+                } else {
+                    // kolom 1 is breder, dus kolom 3 smaller
+                    $(this).find(".col3").css("width", regel - col1 - col2 - 1)
+                }
+            }
         })
     }
 
