@@ -55,37 +55,33 @@ body {
 }
 
 .regel {
-    display: flex;
-    flex-wrap: wrap;
     min-height: calc(100vh / (var(--regels) * 1.1 + 3.5)); /* lege regels */
 }
-.regel .col1 {
-    display: flex;
+.regel span {
+    display: inline-block;
+    vertical-align: top;
 }
 .regel .col1 span {
-    padding: 0 1vw; 
-}
-.regel .col1 span:last-child {
-    margin-left: auto; /* rechts uitlijnen */
+    padding: 0 1.25vw; 
 }
 .regel .col1 span:first-child {
-    margin-left: 0; /* 1 woord niet rechts uitlijnen */
+    float: left;
+    padding-left: 0;
+}
+.regel .col1 span:last-child {
+    float: right;
+    padding-right: 0;
 }
 .regel .col2 {
     padding: 0 1vw; 
     text-align: center;
 }
 .regel .col3 {
-    display: flex;
-    flex-wrap: wrap; /* zo nodig op volgende regel verdergaan */
-    justify-content: end; /* rechts uitlijnen */
+    text-align: right;
 }
 .regel .col3 span {
     padding-left: 5vw; 
 }
-.regel span:first-child {
+.regel .col3 span:first-child {
     padding-left: 0;
-}
-.regel span:last-child {
-    padding-right: 0;
 }
