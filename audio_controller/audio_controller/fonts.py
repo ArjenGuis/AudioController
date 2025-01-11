@@ -9,6 +9,7 @@ fonts = {  # key: name, value: css style class
     "Georgia": "font_georgia",
     "Gill Sans": "font_gill_sans",
     "Verdana": "font_verdana",
+    "Samsung": "font_samsung"
 }
 
 

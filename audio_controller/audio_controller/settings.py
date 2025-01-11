@@ -52,8 +52,8 @@ class Destination:
     id: int = 0
 
 
-default_fontfamily = fonts.validate_font_name("Verdana", True)
-default_fontsize = fonts.validate_font_size(7, True)
+default_fontfamily = fonts.validate_font_name("Samsung", True)
+default_fontsize = fonts.validate_font_size(8, True)
 default_fontweight = fonts.validate_font_weight(400, True)
 
 
