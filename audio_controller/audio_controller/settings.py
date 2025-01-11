@@ -97,7 +97,7 @@ def psalmbord_as_html() -> str:
         else:
             # regel without columns
             """ replace optional ";" with ":" to prevent splitting and alignment """
-            content += regel['text'].strip().replace(";",":")
+            content += f"<span class='no-col'>{regel['text'].strip().replace(";",":")}</span>"
         
         content += "</div>\n"
     return content
