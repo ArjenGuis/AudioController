@@ -50,7 +50,7 @@ body {
     background-color: black;
     color: white;
     padding: 0;
-    /*overflow: hidden;*/
+    overflow-x: hidden;
 }
 
 .container {
