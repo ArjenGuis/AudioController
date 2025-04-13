@@ -276,7 +276,6 @@ class General(BaseHandler):
                 args["title"], args["regels"], args["fontfamily"], args["fontsize"], args["fontweight"]
             )
             self.write(dumps(asdict(settings.psalmbord)))
-            notify_psalmbord()
             return
 
         elif action == "getInputLevels":
