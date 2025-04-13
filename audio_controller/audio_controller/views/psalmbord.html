@@ -29,14 +29,11 @@
     let container = $(".container")
     let interval = 10000 // milliseconds
     let hasFailed = false
-    let time_started = new Date()
 
     function success(response) {
         let result = JSON.parse(response)
-        let time_changed = new Date(result["datetime_changed"])
-        let current_time = new Date()
-        let reload_after_change = (current_time - time_changed) < interval && (current_time - time_started) > interval
-        if (hasFailed || reload_after_change) {
+
+        if (hasFailed) {
             location.reload()
         } else {
             container.empty()

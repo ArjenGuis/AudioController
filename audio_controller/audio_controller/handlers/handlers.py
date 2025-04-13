@@ -109,11 +109,6 @@ class Main(BaseHandler):
         self.write("")
 
 
-psalmbord_changed = dt.datetime.now()
-
-def notify_psalmbord():
-    global psalmbord_changed
-    psalmbord_changed = dt.datetime.now()
 
 class Psalmbord(tornado.web.RequestHandler):
     def body_to_json(self):
@@ -138,7 +133,6 @@ class Psalmbord(tornado.web.RequestHandler):
             if kwargs.get("html"):
                 result = {
                     "html": settings.psalmbord_as_html(),
-                    "datetime_changed": psalmbord_changed.isoformat(),
                 }
                 self.write(dumps(result))
             else:
