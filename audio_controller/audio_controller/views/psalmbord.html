@@ -26,6 +26,7 @@
 <script>
 
     let url = window.location.origin + "/" + "psalmbord"
+    let css = $('style')
     let container = $(".container")
     let interval = 10000 // milliseconds
     let hasFailed = false
@@ -36,9 +37,11 @@
         if (hasFailed) {
             location.reload()
         } else {
-            container.empty()
-            container.append($(result["html"]))
+            css.html($(result["css"]))
+            container.html($(result["html"]))
+
             alignment()
+
             setTimeout(update, interval)
         }
     }

@@ -129,10 +129,12 @@ class Psalmbord(tornado.web.RequestHandler):
 
     def post(self):
         if settings.settings.enable_psalmbord:
+            css = f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
             kwargs = self.body_to_json()
             if kwargs.get("html"):
                 result = {
                     "html": settings.psalmbord_as_html(),
+                    "css": css,
                 }
                 self.write(dumps(result))
             else:
