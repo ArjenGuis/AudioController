@@ -111,6 +111,10 @@ class Main(BaseHandler):
 
 
 class Psalmbord(tornado.web.RequestHandler):
+    #fs = settings.psalmbord.fontsize
+    #fw = settings.psalmbord.fontweight
+    #css = f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
+
     def body_to_json(self):
         body = self.request.body
         if not body:
@@ -119,9 +123,11 @@ class Psalmbord(tornado.web.RequestHandler):
 
     def get(self):
         if settings.settings.enable_psalmbord:
+            # regel 127-129 is dubbel met 138-140, ik weet niet of dit op regel 114-115 kan?
             fs = settings.psalmbord.fontsize
             fw = settings.psalmbord.fontweight
             css = f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
+            # einde dubbele blok
             self.render("psalmbord.html", css=css)
         else:
             html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
@@ -129,7 +135,11 @@ class Psalmbord(tornado.web.RequestHandler):
 
     def post(self):
         if settings.settings.enable_psalmbord:
+            # regel 138-140 is dubbel met 126-128, ik weet niet of dit op regel 114-115 kan?
+            fs = settings.psalmbord.fontsize
+            fw = settings.psalmbord.fontweight
             css = f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
+            # einde dubbele blok
             kwargs = self.body_to_json()
             if kwargs.get("html"):
                 result = {
