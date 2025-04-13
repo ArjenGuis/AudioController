@@ -35,6 +35,10 @@
         let result = JSON.parse(response)
 
         if (hasFailed) {
+            // een vorige ajax call ging fout, maar deze ging goed, waarom nu een reload? 
+            // de nieuw verkregen data kan toch gewoon verwerkt worden (else statement)?
+            // of moet de reload in de error() function?
+            // of is reload gewoonweg niet nodig?
             location.reload()
         } else {
             css.html($(result["css"]))
