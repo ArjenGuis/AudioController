@@ -30,6 +30,7 @@
     let container = $(".container")
     let interval = 10000 // milliseconds
     let hasFailed = false
+    let firstAlignment = true
 
     function success(response) {
         let result = JSON.parse(response)
@@ -37,7 +38,11 @@
         css.html($(result["css"]))
         container.html($(result["html"]))
 
-        alignment()
+        if( firstAlignment ){
+            setTimeout(alignment, 100 )
+        } else {
+            alignment()
+        }
 
         setTimeout(update, interval)
     }
@@ -78,9 +83,9 @@
                 }
             }
         })
-    }
 
-    alignment()
+        firstAlignment = false;
+    }
 
     update()
 
