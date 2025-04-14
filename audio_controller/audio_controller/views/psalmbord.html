@@ -65,7 +65,7 @@
             var col2 = $(this).find(".col2").outerWidth()
             
             // breedte van col1 en col3 instellen, mits er een col2 bestaat
-            if( col2 !== null ){
+            if( col2 !== undefined ){
                 var col1 = $(this).find(".col1").outerWidth()
                 var half = (regel / 2) - (col2 / 2) - 0.2
 
