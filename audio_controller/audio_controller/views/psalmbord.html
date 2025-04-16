@@ -35,8 +35,8 @@
     function success(response) {
         let result = JSON.parse(response)
 
-        css.html($(result["css"]))
-        container.html($(result["html"]))
+        css.html(result.css)
+        container.html(result.html)
 
         if( firstAlignment ){
             setTimeout(alignment, 100 )
