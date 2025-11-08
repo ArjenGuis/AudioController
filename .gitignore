@@ -8,12 +8,12 @@ node_modules
 transcrypt/python/__target__
 transcrypt/**/*.json
 /pyenv
-/manage_env
 audio_controller/audio_controller/static/js/main*.js
 audio_controller/audio_controller/static/js/fontawesome-free-5.13.1-web
 audio_controller/audio_controller/static/js/bootstrap-4.1.3-dist
 __pycache__
 *.egg-info
+*.pyc
 .env
 .git.tar
 rsync-result.txt

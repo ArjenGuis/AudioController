@@ -139,7 +139,31 @@ sudo crontab -e
 0 4 * * * systemctl restart audio_controller.service
 ```
 
-To start the browser in kiosk mode, add the following lines to `/etc/xdg/lxsession/LXDE-pi/autostart`:
+## 4.1. Start browser in kiosk mode
+
+Check os version:
+```
+cat /etc/os-release
+```
+
+If version is 12 (bookworm):
+```
+mkdir -p ~/.config/autostart
+nano ~/.config/autostart/chromium-kiosk.desktop
+```
+
+And add the following content:
+```
+[Desktop Entry]
+Type=Application
+Name=Chromium Kiosk
+Exec=chromium --noerrdialogs --disable-infobars --kiosk http://localhost:5000/
+X-GNOME-Autostart-enabled=true
+```
+
+If version is lower:
+
+Add the following lines to `/etc/xdg/lxsession/LXDE-pi/autostart`:
 ```
 @xset s off
 @xset -dpms
