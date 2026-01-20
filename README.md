@@ -157,7 +157,7 @@ And add the following content:
 [Desktop Entry]
 Type=Application
 Name=Chromium Kiosk
-Exec=chromium --noerrdialogs --disable-infobars --kiosk http://localhost:5000/
+Exec=chromium --noerrdialogs --disable-infobars --kiosk --password-store=basic http://localhost:5000/
 X-GNOME-Autostart-enabled=true
 ```
 
