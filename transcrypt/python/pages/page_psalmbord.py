@@ -68,8 +68,8 @@ class Page(ElementWrapper):
         #config item: tekst regels
         div_list = E('div')
         col_1.append(div_list)
-        plist = PagedList(div_list.element, "").hide_count().disable_pagination()
-        plist.get_styling().table_class('table borderless')
+        plist_regels = PagedList(div_list.element, "").hide_count().disable_pagination()
+        plist_regels.get_styling().table_class('table borderless')
 
         def text_element(attr, item):
             r = E('input').attr('type', 'text').attr('style', 'width: 100%; font-family: monospace;')
@@ -81,18 +81,18 @@ class Page(ElementWrapper):
             r.element.onchange = onchange
             return r.element
 
-        plist.add_column('text', 'Tekst').item_to_element(text_element.bind(None, 'text'))
+        plist_regels.add_column('text', 'Tekst').item_to_element(text_element.bind(None, 'text'))
 
         def set_inputs():
             input_title.element.value = self.psalmbord['title']
-            plist.get_server().data = self.psalmbord['regels']
+            plist_regels.get_server().data = self.psalmbord['regels']
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontsize.element.value = self.psalmbord['fontsize']
             select_fontweight.element.value = self.psalmbord['fontweight']
             input_active.element.checked = self.psalmbord['active']
-            plist.refresh()
+            plist_regels.refresh()
 
-        async def delete_item(item):
+        async def delete_regel(item):
             self.psalmbord['regels'].remove(item)
             await save_changes()
 
@@ -100,9 +100,9 @@ class Page(ElementWrapper):
             self.psalmbord = await utils.post(utils.get_url('general/setPsalmbord'), self.psalmbord)
             set_inputs()
 
-        plist.add_button('delete', '', 'btn btn-danger btn-sm') \
+        plist_regels.add_button('delete', '', 'btn btn-danger btn-sm') \
             .use_element(lambda item: E('i').attr("class", 'fas fa-trash-alt')) \
-            .onclick(delete_item)
+            .onclick(delete_regel)
 
         async def change_order(up: bool, item):
             regels = self.psalmbord['regels']
@@ -114,25 +114,25 @@ class Page(ElementWrapper):
             regels.remove(item)
             regels.insert(j, item)
             self.psalmbord = await utils.post(utils.get_url('general/setPsalmbord'), self.psalmbord)
-            plist.get_server().data = self.psalmbord['regels']
-            plist.refresh()
+            plist_regels.get_server().data = self.psalmbord['regels']
+            plist_regels.refresh()
 
-        plist.add_button('up', '', 'btn btn-primary btn-sm') \
+        plist_regels.add_button('up', '', 'btn btn-primary btn-sm') \
             .use_element(lambda item: E('i').attr("class", 'fas fa-sort-up').attr('style', 'font-size: 20px; vertical-align: bottom;')) \
             .onclick(change_order.bind(None, True))
 
-        plist.add_button('down', '', 'btn btn-primary btn-sm') \
+        plist_regels.add_button('down', '', 'btn btn-primary btn-sm') \
             .use_element(lambda item: E('i').attr("class", 'fas fa-sort-down').attr('style', 'font-size: 20px; vertical-align: bottom;')) \
             .onclick(change_order.bind(None, False))
 
-        def add_item(evt):
+        def add_regel(evt):
             self.psalmbord['regels'].append(regel(""))
-            plist.get_server().data = self.psalmbord['regels']
-            plist.refresh()
+            plist_regels.get_server().data = self.psalmbord['regels']
+            plist_regels.refresh()
 
         # tekst regel toevoegen
-        button_add = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Toevoegen")
-        button_add.element.onclick = add_item
+        button_add_regel = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Toevoegen regel")
+        button_add_regel.element.onclick = add_regel
 
         col_1.append(button_add)
 
