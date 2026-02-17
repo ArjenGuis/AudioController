@@ -134,7 +134,7 @@ class Page(ElementWrapper):
         button_add_regel = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Toevoegen regel")
         button_add_regel.element.onclick = add_regel
 
-        col_1.append(button_add)
+        col_1.append(button_add_regel)
 
         # spacer
         col_1.append(E('div').attr('style', 'min-height: 2vh;'))
