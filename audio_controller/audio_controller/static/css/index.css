@@ -194,3 +194,7 @@ div.screen input {
   vertical-align: middle; 
   margin-right: 10px;
 }
+div.screen textarea {
+  width: 200px;
+  height: 355px;
+}

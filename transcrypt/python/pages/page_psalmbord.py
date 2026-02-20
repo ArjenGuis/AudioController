@@ -81,7 +81,7 @@ class Page(ElementWrapper):
             r.element.onchange = onchange
             return r.element
 
-        plist_regels.add_column('text', 'Tekst').item_to_element(text_element.bind(None, 'text'))
+        plist_regels.add_column('text', 'Regels').item_to_element(text_element.bind(None, 'text'))
 
         def set_inputs():
             input_title.element.value = self.psalmbord['title']
@@ -131,12 +131,15 @@ class Page(ElementWrapper):
             plist_regels.refresh()
 
         # tekst regel toevoegen
-        button_add_regel = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Toevoegen regel")
+        button_add_regel = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Regel toevoegen")
         button_add_regel.element.onclick = add_regel
 
         col_1.append(button_add_regel)
 
         # custom screens
+        def screen(text: str):
+            return {"text": text}
+
         screens = []
         screens.append( 
             E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0'),
@@ -153,6 +156,8 @@ class Page(ElementWrapper):
                 label = "Leeg scherm"
             elif i == 1:
                 label = "Scherm met regels"
+            else:
+                label = f"Scherm {i}"
 
             screens_div.append(
                 E('div').attr('class','{} screen'.format(width_2)).append(
@@ -163,6 +168,31 @@ class Page(ElementWrapper):
             i = i+1
 
         col_1.append(screens_div)
+
+        # add screen
+        def add_screen(evt):
+            i = screens.length
+            id = f'screen{i}'
+            label = f"Scherm {i+1}"
+            
+            s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
+
+            screens.append( s )
+
+            screens_div.append(
+                E('div').attr('class','{} screen'.format(width_2)).append(
+                    s,
+                    E('label').attr('class','col-form-label').attr('for',id).inner_html( label ),
+                    E('textarea').attr('name',id)
+                )
+            )
+
+            s.element.onchange = onchange
+        
+        button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
+        button_add_screen.element.onclick = add_screen
+
+        col_1.append(button_add_screen)
 
         # spacer
         col_1.append(E('div').attr('style', 'min-height: 2vh;'))
