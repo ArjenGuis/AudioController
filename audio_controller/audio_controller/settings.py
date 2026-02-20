@@ -69,39 +69,46 @@ class Psalmbord:
 
 def psalmbord_as_html() -> str:
     """ Create a html string to display the psalmbord in the browser """
-    # title
-    if psalmbord.title.strip() != "":
-        content = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>"
-    else:
+    if psalmbord.active == 0:
         content = ""
-    
-    # regels
-    for regel in psalmbord.regels:
-        content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
-
-        col = regel['text'].strip().split(":")
-        if len(col) > 1:
-            # regel with three columns
-            content += "<span class='col1'>"
-            for col1 in col[0].split(" "):
-                if col1.strip() != "":
-                    content += f"<span>{col1}</span>"
-            content += "</span>"
-
-            content += "<span class='col2'>:</span>"
-
-            content += "<span class='col3'>"
-            for col3 in col[1].split(" "):
-                if col3.strip() != "":
-                    content += f"<span>{col3}</span>"
-            content += "</span>"
+    elif psalmbord.active == 1:
+        # title
+        if psalmbord.title.strip() != "":
+            content = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>"
         else:
-            # regel without columns
-            """ replace optional ";" with ":" to prevent splitting and alignment """
-            regel_text = regel['text'].replace(";",":")
-            content += f"<span class='no-col'>{regel_text}</span>"
+            content = ""
         
-        content += "</div>\n"
+        # regels
+        for regel in psalmbord.regels:
+            content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
+
+            col = regel['text'].strip().split(":")
+            if len(col) > 1:
+                # regel with three columns
+                content += "<span class='col1'>"
+                for col1 in col[0].split(" "):
+                    if col1.strip() != "":
+                        content += f"<span>{col1}</span>"
+                content += "</span>"
+
+                content += "<span class='col2'>:</span>"
+
+                content += "<span class='col3'>"
+                for col3 in col[1].split(" "):
+                    if col3.strip() != "":
+                        content += f"<span>{col3}</span>"
+                content += "</span>"
+            else:
+                # regel without columns
+                """ replace optional ";" with ":" to prevent splitting and alignment """
+                regel_text = regel['text'].replace(";",":")
+                content += f"<span class='no-col'>{regel_text}</span>"
+            
+            content += "</div>\n"
+    else:
+        #to do
+        content = ""
+
     return content
 
 
