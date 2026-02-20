@@ -89,7 +89,7 @@ class Page(ElementWrapper):
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontsize.element.value = self.psalmbord['fontsize']
             select_fontweight.element.value = self.psalmbord['fontweight']
-            input_active.element.checked = self.psalmbord['active']
+            screens[self.psalmbord['active']].element.checked = True
             plist_regels.refresh()
 
         async def delete_regel(item):
@@ -136,6 +136,34 @@ class Page(ElementWrapper):
 
         col_1.append(button_add_regel)
 
+        # custom screens
+        screens = []
+        screens.append( 
+            E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0'),
+        )
+        screens.append(
+            E("input").attr("class", "form-control").attr('id','screen1').attr("type", "radio").attr('name','active').attr('value','1'),
+        )
+
+        screens_div = E('div').attr('class','row')
+        i = 0
+        for s in screens:
+            id = f'screen{i}'
+            if i == 0:
+                label = "Leeg scherm"
+            elif i == 1:
+                label = "Scherm met regels"
+
+            screens_div.append(
+                E('div').attr('class','{} screen'.format(width_2)).append(
+                    s,
+                    E('label').attr('class','col-form-label').attr('for',id).inner_html( label )
+                )
+            )
+            i = i+1
+
+        col_1.append(screens_div)
+
         # spacer
         col_1.append(E('div').attr('style', 'min-height: 2vh;'))
 
@@ -143,7 +171,6 @@ class Page(ElementWrapper):
         select_fontfamily = Select("fontfamily", fonts)
         select_fontsize = Select("fontsize", fontsizes)
         select_fontweight = Select("fontsize", fontweights)
-        input_active = E("input").attr("class", "form-control").attr("type", "checkbox").attr("style", "width: 20px;")
 
         col_1.append(
             E('div').attr('class', 'form-group row').append(
@@ -157,10 +184,6 @@ class Page(ElementWrapper):
             E('div').attr('class', 'form-group row').append(
                 E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Letter dikte"),
                 E('div').attr('class', '{}'.format(width_3)).append(select_fontweight)
-            ),
-            E("div").attr("class", "form-group row").append(
-                E("label").attr("class", "{} col-form-label".format(width_2)).inner_html("Toon inhoud op scherm"),
-                E("div").attr("class", "{}".format(width_1)).append(input_active),
             ),
         )
         self.append(col_1)
@@ -182,14 +205,20 @@ class Page(ElementWrapper):
             self.psalmbord['fontfamily'] = select_fontfamily.element.value
             self.psalmbord['fontsize'] = select_fontsize.element.value
             self.psalmbord['fontweight'] = select_fontweight.element.value
-            self.psalmbord['active'] = input_active.element.checked
+            self.psalmbord['active'] = 1
+            i = 0
+            for s in screens:
+                if s.element.checked:
+                    self.psalmbord['active'] = i
+                i = i + 1
             save_changes()
 
         input_title.element.onchange = onchange
         select_fontfamily.element.onchange = onchange
         select_fontsize.element.onchange = onchange
         select_fontweight.element.onchange = onchange
-        input_active.element.onchange = onchange
+        for s in screens:
+            s.element.onchange = onchange
 
     def show(self):
         main.remove_childs()

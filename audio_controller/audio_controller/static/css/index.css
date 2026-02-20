@@ -182,3 +182,15 @@ input:checked + .slider:before {
 } 
 
 /* End - Toggle checkbox */
+
+div.screen {
+  border: solid 1px black;
+  height: 100%;
+  margin: 10px;
+}
+div.screen input {
+  width: 20px; 
+  display: inline-block; 
+  vertical-align: middle; 
+  margin-right: 10px;
+}
