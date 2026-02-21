@@ -32,10 +32,6 @@ fontsizes = list(range(5, 16))
 fontweights = list(range(300, 900, 100))
 
 
-def regel(text: str):
-    return {"text": text}
-
-
 class Select(ElementWrapper):
     def __init__(self, name: str, values: dict):
         super().__init__(element('select'))
@@ -49,7 +45,6 @@ class Page(ElementWrapper):
         super().__init__(element('div'))
         self.psalmbord: dict = None
 
-        input_title = E('input').attr('class', 'form-control').attr('type', 'text')
         width_1 = 'col-sm-1'
         width_2 = 'col-sm-2'
         width_3 = 'col-sm-3'
@@ -58,6 +53,7 @@ class Page(ElementWrapper):
         col_1 = E('div').attr('style', 'float: left; width: 75%')
 
         # config item: titel regel
+        input_title = E('input').attr('class', 'form-control').attr('type', 'text')
         col_1.append(
             E('div').attr('class', 'form-group row').append(
                 E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Titel"),
@@ -66,11 +62,6 @@ class Page(ElementWrapper):
         )
 
         #config item: tekst regels
-        div_list = E('div')
-        col_1.append(div_list)
-        plist_regels = PagedList(div_list.element, "").hide_count().disable_pagination()
-        plist_regels.get_styling().table_class('table borderless')
-
         def text_element(attr, item):
             r = E('input').attr('type', 'text').attr('style', 'width: 100%; font-family: monospace;')
             r.element.value = item[attr]
@@ -81,15 +72,21 @@ class Page(ElementWrapper):
             r.element.onchange = onchange
             return r.element
 
-        plist_regels.add_column('text', 'Regels').item_to_element(text_element.bind(None, 'text'))
-
         def set_inputs():
             input_title.element.value = self.psalmbord['title']
             plist_regels.get_server().data = self.psalmbord['regels']
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontsize.element.value = self.psalmbord['fontsize']
             select_fontweight.element.value = self.psalmbord['fontweight']
-            screens[self.psalmbord['active']].element.checked = True
+            select_screens[self.psalmbord['active']].element.checked = True
+            plist_regels.refresh()
+
+        def regel(text: str):
+            return {"text": text}
+
+        def add_regel(evt):
+            self.psalmbord['regels'].append(regel(""))
+            plist_regels.get_server().data = self.psalmbord['regels']
             plist_regels.refresh()
 
         async def delete_regel(item):
@@ -99,10 +96,6 @@ class Page(ElementWrapper):
         async def save_changes():
             self.psalmbord = await utils.post(utils.get_url('general/setPsalmbord'), self.psalmbord)
             set_inputs()
-
-        plist_regels.add_button('delete', '', 'btn btn-danger btn-sm') \
-            .use_element(lambda item: E('i').attr("class", 'fas fa-trash-alt')) \
-            .onclick(delete_regel)
 
         async def change_order(up: bool, item):
             regels = self.psalmbord['regels']
@@ -117,6 +110,17 @@ class Page(ElementWrapper):
             plist_regels.get_server().data = self.psalmbord['regels']
             plist_regels.refresh()
 
+        div_list = E('div')
+        col_1.append(div_list)
+        plist_regels = PagedList(div_list.element, "").hide_count().disable_pagination()
+        plist_regels.get_styling().table_class('table borderless')
+
+        plist_regels.add_column('text', 'Regels').item_to_element(text_element.bind(None, 'text'))
+
+        plist_regels.add_button('delete', '', 'btn btn-danger btn-sm') \
+            .use_element(lambda item: E('i').attr("class", 'fas fa-trash-alt')) \
+            .onclick(delete_regel)
+
         plist_regels.add_button('up', '', 'btn btn-primary btn-sm') \
             .use_element(lambda item: E('i').attr("class", 'fas fa-sort-up').attr('style', 'font-size: 20px; vertical-align: bottom;')) \
             .onclick(change_order.bind(None, True))
@@ -125,11 +129,6 @@ class Page(ElementWrapper):
             .use_element(lambda item: E('i').attr("class", 'fas fa-sort-down').attr('style', 'font-size: 20px; vertical-align: bottom;')) \
             .onclick(change_order.bind(None, False))
 
-        def add_regel(evt):
-            self.psalmbord['regels'].append(regel(""))
-            plist_regels.get_server().data = self.psalmbord['regels']
-            plist_regels.refresh()
-
         # tekst regel toevoegen
         button_add_regel = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Regel toevoegen")
         button_add_regel.element.onclick = add_regel
@@ -137,20 +136,17 @@ class Page(ElementWrapper):
         col_1.append(button_add_regel)
 
         # custom screens
-        def screen(text: str):
-            return {"text": text}
-
-        screens = []
-        screens.append( 
-            E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0'),
+        select_screens = []
+        select_screens.append( 
+            E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0')
         )
-        screens.append(
-            E("input").attr("class", "form-control").attr('id','screen1').attr("type", "radio").attr('name','active').attr('value','1'),
+        select_screens.append(
+            E("input").attr("class", "form-control").attr('id','screen1').attr("type", "radio").attr('name','active').attr('value','1')
         )
 
         screens_div = E('div').attr('class','row')
         i = 0
-        for s in screens:
+        for s in select_screens:
             id = f'screen{i}'
             if i == 0:
                 label = "Leeg scherm"
@@ -167,35 +163,38 @@ class Page(ElementWrapper):
             )
             i = i+1
 
-        col_1.append(screens_div)
+        col_1.append( 
+            E('p').attr('class','psalmbord_heading').inner_html('Schermen'),
+            screens_div
+        )
 
         # add screen
         def add_screen(evt):
-            i = screens.length
+            i = select_screens.length
             id = f'screen{i}'
             label = f"Scherm {i+1}"
             
             s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
 
-            screens.append( s )
+            select_screens.append( s )
 
             screens_div.append(
                 E('div').attr('class','{} screen'.format(width_2)).append(
                     s,
                     E('label').attr('class','col-form-label').attr('for',id).inner_html( label ),
-                    E('textarea').attr('name',id)
+                    E('textarea').attr('name',id),
                 )
             )
 
             s.element.onchange = onchange
-        
+
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
         button_add_screen.element.onclick = add_screen
 
         col_1.append(button_add_screen)
 
         # spacer
-        col_1.append(E('div').attr('style', 'min-height: 2vh;'))
+        col_1.append( E('p').attr('class','psalmbord_heading').inner_html('Instellingen') )
 
         # config settings
         select_fontfamily = Select("fontfamily", fonts)
@@ -204,15 +203,15 @@ class Page(ElementWrapper):
 
         col_1.append(
             E('div').attr('class', 'form-group row').append(
-                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Letter type"),
-                E('div').attr('class', '{}'.format(width_3)).append(select_fontfamily)
-            ),
-            E('div').attr('class', 'form-group row').append(
                 E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Aantal regels"),
                 E('div').attr('class', '{}'.format(width_3)).append(select_fontsize)
             ),
             E('div').attr('class', 'form-group row').append(
-                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Letter dikte"),
+                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Lettertype"),
+                E('div').attr('class', '{}'.format(width_3)).append(select_fontfamily)
+            ),
+            E('div').attr('class', 'form-group row').append(
+                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Letterdikte"),
                 E('div').attr('class', '{}'.format(width_3)).append(select_fontweight)
             ),
         )
@@ -237,7 +236,7 @@ class Page(ElementWrapper):
             self.psalmbord['fontweight'] = select_fontweight.element.value
             self.psalmbord['active'] = 1
             i = 0
-            for s in screens:
+            for s in select_screens:
                 if s.element.checked:
                     self.psalmbord['active'] = i
                 i = i + 1
@@ -247,7 +246,7 @@ class Page(ElementWrapper):
         select_fontfamily.element.onchange = onchange
         select_fontsize.element.onchange = onchange
         select_fontweight.element.onchange = onchange
-        for s in screens:
+        for s in select_screens:
             s.element.onchange = onchange
 
     def show(self):

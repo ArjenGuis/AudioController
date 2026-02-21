@@ -198,3 +198,8 @@ div.screen textarea {
   width: 200px;
   height: 355px;
 }
+
+.psalmbord_heading {
+  font-weight: bold;
+  margin: 1rem 0 0;
+}
