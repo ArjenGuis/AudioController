@@ -137,7 +137,6 @@ class Page(ElementWrapper):
 
         # custom screens
         select_screens = []
-        delete_screens = []
         select_screens.append( 
             E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0')
         )
@@ -150,11 +149,11 @@ class Page(ElementWrapper):
         for s in select_screens:
             id = f'screen{i}'
             if i == 0:
-                label = "Leeg scherm"
+                label = "Leeg"
             elif i == 1:
-                label = "Scherm met regels"
+                label = "Met regels"
             else:
-                label = f"Scherm {i}"
+                label = "Met tekst"
 
             screens_div.append(
                 E('div').attr('class','{} screen'.format(width_2)).append(
@@ -173,24 +172,30 @@ class Page(ElementWrapper):
         def add_screen(evt):
             i = select_screens.length
             id = f'screen{i}'
-            label = f"Scherm {i+1}"
             
             s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
             d = E('button').attr('class','btn btn-danger btn-sm').attr('style','float:right; margin: 5px 0;').append( E('i').attr("class", 'fas fa-trash-alt') )
+            d.element.onclick = delete_screen
 
             select_screens.append( s )
-            delete_screens.append( d )
 
             screens_div.append(
-                E('div').attr('class','{} screen'.format(width_2)).append(
+                E('div').attr('class','{} screen'.format(width_2)).attr('data-id',i).append(
                     s,
-                    E('label').attr('class','col-form-label').attr('for',id).inner_html( label ),
+                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Met tekst' ),
                     d,
                     E('textarea').attr('name',id),
                 )
             )
 
             s.element.onchange = onchange
+
+        def delete_screen(evt):
+            div = evt.target.closest(".screen")
+            id = div.dataset.id
+
+            del select_screens[id]
+            div.remove()
 
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
         button_add_screen.element.onclick = add_screen
