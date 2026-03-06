@@ -78,7 +78,12 @@ class Page(ElementWrapper):
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontsize.element.value = self.psalmbord['fontsize']
             select_fontweight.element.value = self.psalmbord['fontweight']
-            select_screens[self.psalmbord['active']].element.checked = True
+            i = 0
+            for t in self.psalmbord['screens']:
+                if i not in screen_key:
+                    add_screen('', i, t)
+                i = i + 1
+            screen_select[self.psalmbord['active']].element.checked = True
             plist_regels.refresh()
 
         def regel(text: str):
@@ -136,66 +141,68 @@ class Page(ElementWrapper):
         col_1.append(button_add_regel)
 
         # custom screens
-        select_screens = []
-        select_screens.append( 
-            E("input").attr("class", "form-control").attr('id','screen0').attr("type", "radio").attr('name','active').attr('value','0')
-        )
-        select_screens.append(
-            E("input").attr("class", "form-control").attr('id','screen1').attr("type", "radio").attr('name','active').attr('value','1')
-        )
+        screen_text = []
+        screen_select = []
+        screen_key = []
 
-        screens_div = E('div').attr('class','row')
-        i = 0
-        for s in select_screens:
-            id = f'screen{i}'
-            if i == 0:
-                label = "Leeg"
-            elif i == 1:
-                label = "Met regels"
-            else:
-                label = "Met tekst"
-
-            screens_div.append(
-                E('div').attr('class','{} screen'.format(width_2)).append(
-                    s,
-                    E('label').attr('class','col-form-label').attr('for',id).inner_html( label )
-                )
-            )
-            i = i+1
+        screen_div = E('div').attr('class','row')
 
         col_1.append( 
             E('p').attr('class','psalmbord_heading').inner_html('Schermen'),
-            screens_div
+            screen_div
         )
 
         # add screen
-        def add_screen(evt):
-            i = select_screens.length
+        def add_screen(evt, i = screen_select.length, text = ''):
             id = f'screen{i}'
+            div = E('div').attr('class','{} screen'.format(width_2)).attr('data-id',i)
             
             s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
-            d = E('button').attr('class','btn btn-danger btn-sm').attr('style','float:right; margin: 5px 0;').append( E('i').attr("class", 'fas fa-trash-alt') )
-            d.element.onclick = delete_screen
+            s.element.onchange = onchange
 
-            select_screens.append( s )
+            screen_select.append( s )
+            screen_key.append( i )
 
-            screens_div.append(
-                E('div').attr('class','{} screen'.format(width_2)).attr('data-id',i).append(
+            if i == 0 and text == 'leeg':
+                div.append(
+                    s,
+                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Leeg' ),
+               )
+                screen_text.append( text )
+            elif i == 1 and text == 'regels':
+                div.append(
+                    s,
+                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Met regels' ),
+                )
+                screen_text.append( text )
+            else:
+                d = E('button').attr('class','btn btn-danger btn-sm').attr('style','float:right; margin: 5px 0;').append( E('i').attr("class", 'fas fa-trash-alt') )
+                d.element.onclick = delete_screen
+
+                t = E('textarea').attr('name',id)
+                t.element.value = text
+                t.element.onchange = onchange
+
+                div.append(
                     s,
                     E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Met tekst' ),
                     d,
-                    E('textarea').attr('name',id),
+                    t,
                 )
-            )
-
-            s.element.onchange = onchange
+                screen_text.append( t )
+            
+            screen_div.append( div )
 
         def delete_screen(evt):
             div = evt.target.closest(".screen")
             id = div.dataset.id
 
-            del select_screens[id]
+            del screen_text[id]
+            del screen_select[id]
+            del screen_key[id]
+            del self.psalmbord['screens'][id]
             div.remove()
+            save_changes()
 
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
         button_add_screen.element.onclick = add_screen
@@ -245,9 +252,12 @@ class Page(ElementWrapper):
             self.psalmbord['fontweight'] = select_fontweight.element.value
             self.psalmbord['active'] = 1
             i = 0
-            for s in select_screens:
-                if s.element.checked:
+            for s in screen_select:
+                if s and s.element.checked:
                     self.psalmbord['active'] = i
+                if screen_text[i] and screen_text[i].element:
+                    self.psalmbord['screens'][i] = screen_text[i].element.value
+
                 i = i + 1
             save_changes()
 
@@ -255,8 +265,9 @@ class Page(ElementWrapper):
         select_fontfamily.element.onchange = onchange
         select_fontsize.element.onchange = onchange
         select_fontweight.element.onchange = onchange
-        for s in select_screens:
-            s.element.onchange = onchange
+        for s in screen_select:
+            if s:
+                s.element.onchange = onchange
 
     def show(self):
         main.remove_childs()

@@ -55,6 +55,7 @@ class Destination:
 default_fontfamily = fonts.validate_font_name("Samsung", True)
 default_fontsize = fonts.validate_font_size(8, True)
 default_fontweight = fonts.validate_font_weight(400, True)
+default_screens = ['leeg','regels']
 
 
 @dataclass
@@ -65,6 +66,7 @@ class Psalmbord:
     fontsize: float = default_fontsize
     fontweight: int = default_fontweight
     active: int = 1 # if 0, show empty screen (not to confuse with enable_psalmbord)
+    screens: List[str] = field(default_factory=lambda: list(default_screens))
 
 
 def psalmbord_as_html() -> str:
@@ -106,8 +108,11 @@ def psalmbord_as_html() -> str:
             
             content += "</div>\n"
     else:
-        #to do
+        regels = psalmbord.screens[psalmbord.active].splitlines()
+
         content = ""
+        for r in regels:
+            content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>{r}</div>"
 
     return content
 
@@ -162,6 +167,7 @@ def default_psalmbord():
     result.fontsize = default_fontsize
     result.fontweight = default_fontweight
     result.active = 1
+    result.screens = default_screens
     return result
 
 
@@ -230,6 +236,10 @@ def upgrade(store: dict):
     if store['settings']['version'] == 9:
         store['settings']['version'] = 10
         store['psalmbord']['active'] = 1
+    
+    if store['settings']['version'] == 10:
+        store['settings']['version'] = 11
+        store['psalmbord']['screens'] = default_screens
     
     #
     # future upgrades will be placed here
@@ -534,8 +544,8 @@ def update_destinations(new_destinations: List[dict]):
         pass
 
 
-def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontweight, active: int):
-    temp = Psalmbord(title, regels, fontfamily, fontsize, fontweight, active)
+def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontweight, active: int, screens: List[str]):
+    temp = Psalmbord(title, regels, fontfamily, fontsize, fontweight, active, screens)
     temp = validate_psalmbord(temp)
     if temp:
         psalmbord.title = temp.title
@@ -544,6 +554,7 @@ def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontw
         psalmbord.fontsize = temp.fontsize
         psalmbord.fontweight = temp.fontweight
         psalmbord.active = temp.active
+        psalmbord.screens = temp.screens
         save()
 
 

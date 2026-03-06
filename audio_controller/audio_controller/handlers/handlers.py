@@ -265,7 +265,7 @@ class General(BaseHandler):
         elif action == "setPsalmbord":
             args = self.body_to_json()
             settings.update_psalmbord(
-                args["title"], args["regels"], args["fontfamily"], args["fontsize"], args["fontweight"], args["active"]
+                args["title"], args["regels"], args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"]
             )
             self.write(dumps(asdict(settings.psalmbord)))
             return
