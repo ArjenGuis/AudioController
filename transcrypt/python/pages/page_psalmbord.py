@@ -9,6 +9,9 @@ E = Element
 # copied from fonts.py
 fonts = ["Arial", "Cambria", "Courier New", "Courier Prime", "Georgia", "Gill Sans", "Verdana", "Samsung"]
 
+# copied from settings.py
+default_screens = ['leeg','regels']
+
 
 def frange(start: float, stop: float, step: float):
     """ range() for floats """
@@ -76,14 +79,28 @@ class Page(ElementWrapper):
             input_title.element.value = self.psalmbord['title']
             plist_regels.get_server().data = self.psalmbord['regels']
             select_fontfamily.element.value = self.psalmbord['fontfamily']
-            select_fontsize.element.value = self.psalmbord['fontsize']
             select_fontweight.element.value = self.psalmbord['fontweight']
+
+            if len(self.psalmbord['screens']) == 0:
+                i = 0
+                for s in default_screens:
+                    add_screen('',i,s)
+                    i = i + 1
+
             i = 0
             for t in self.psalmbord['screens']:
-                if i not in screen_key:
-                    add_screen('', i, t)
+                if i not in screen_key and t:
+                    add_screen('', i, t['text'])
+                    if select_fontsize[i] and select_fontsize[i].element:
+                        select_fontsize[i].element.value = t['size']
                 i = i + 1
-            screen_select[self.psalmbord['active']].element.checked = True
+            if screen_select[self.psalmbord['active']] and screen_select[self.psalmbord['active']].element:
+                screen_select[self.psalmbord['active']].element.checked = True
+            else:
+                screen_select[1].element.checked = True
+                self.psalmbord['active'] = 1
+                self.psalmbord['fontsize'] = select_fontsize[1].element.value
+                save_changes()
             plist_regels.refresh()
 
         def regel(text: str):
@@ -159,49 +176,74 @@ class Page(ElementWrapper):
             
             s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
             s.element.onchange = onchange
+            
+            select_fontsize[i] = Select(f"fontsize{i}",fontsizes)
+            select_fontsize[i].element.onchange = onchange
 
             screen_select.append( s )
             screen_key.append( i )
 
             if i == 0 and text == 'leeg':
-                div.append(
-                    s,
-                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Leeg' ),
-               )
+                l = 'Leeg'
+                f = None
+                d = None
+                t = None
                 screen_text.append( text )
             elif i == 1 and text == 'regels':
-                div.append(
-                    s,
-                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Met regels' ),
-                )
+                #select_fontsize.attr('name',f"size{i}")
+                l = 'Met regels'
+                f = E('div').append(
+                        E('label').attr('style', 'width:60%').inner_html("Aantal regels"),
+                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize[i])
+                    )
+                d = None
+                t = None
                 screen_text.append( text )
             else:
+                l = 'Met tekst'
+                f = E('div').append(
+                        E('label').attr('style', 'width:60%').inner_html("Aantal regels"),
+                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize[i])
+                    )
+                
                 d = E('button').attr('class','btn btn-danger btn-sm').attr('style','float:right; margin: 5px 0;').append( E('i').attr("class", 'fas fa-trash-alt') )
                 d.element.onclick = delete_screen
 
                 t = E('textarea').attr('name',id)
                 t.element.value = text
                 t.element.onchange = onchange
-
-                div.append(
-                    s,
-                    E('label').attr('class','col-form-label').attr('for',id).inner_html( 'Met tekst' ),
-                    d,
-                    t,
-                )
                 screen_text.append( t )
+
+            div.append(
+                s,
+                E('label').attr('class','col-form-label').attr('for',id).inner_html( l ),
+            )
+            if d:
+                div.append(d)
+            if f:
+                div.append(f)
+            if t:
+                div.append(t)
             
+            self.psalmbord['screens'][i] = {'index':id,'text':text,'size':12}
             screen_div.append( div )
 
         def delete_screen(evt):
             div = evt.target.closest(".screen")
             id = div.dataset.id
 
-            del screen_text[id]
-            del screen_select[id]
-            del screen_key[id]
-            del self.psalmbord['screens'][id]
+            if screen_text[id]:
+                screen_text.remove( screen_text[id] )
+            if select_fontsize[id]:
+                select_fontsize.remove( select_fontsize[id] )
+            if screen_key[id]:
+                screen_key.remove( screen_key[id] )
+            if screen_select[id]:
+                screen_select.remove( screen_select[id] )
+            if self.psalmbord['screens'][id]:
+                self.psalmbord['screens'].remove( self.psalmbord['screens'][id] )
             div.remove()
+
             save_changes()
 
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
@@ -214,14 +256,10 @@ class Page(ElementWrapper):
 
         # config settings
         select_fontfamily = Select("fontfamily", fonts)
-        select_fontsize = Select("fontsize", fontsizes)
+        select_fontsize = []
         select_fontweight = Select("fontsize", fontweights)
 
         col_1.append(
-            E('div').attr('class', 'form-group row').append(
-                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Aantal regels"),
-                E('div').attr('class', '{}'.format(width_3)).append(select_fontsize)
-            ),
             E('div').attr('class', 'form-group row').append(
                 E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Lettertype"),
                 E('div').attr('class', '{}'.format(width_3)).append(select_fontfamily)
@@ -248,26 +286,30 @@ class Page(ElementWrapper):
         async def onchange(evt):
             self.psalmbord['title'] = input_title.element.value
             self.psalmbord['fontfamily'] = select_fontfamily.element.value
-            self.psalmbord['fontsize'] = select_fontsize.element.value
             self.psalmbord['fontweight'] = select_fontweight.element.value
             self.psalmbord['active'] = 1
             i = 0
             for s in screen_select:
-                if s and s.element.checked:
-                    self.psalmbord['active'] = i
-                if screen_text[i] and screen_text[i].element:
-                    self.psalmbord['screens'][i] = screen_text[i].element.value
+                if s:
+                    if s.element.checked:
+                        self.psalmbord['active'] = i
+                        self.psalmbord['fontsize'] = select_fontsize[i].element.value
+                    if screen_text[i] and screen_text[i].element:
+                        t = screen_text[i].element.value
+                    else:
+                        t = screen_text[i]
+                    if select_fontsize[i] and select_fontsize[i].element:
+                        f = select_fontsize[i].element.value
+                    else:
+                        f = 8
 
+                    self.psalmbord['screens'][i] = {'index':f"screen{i}",'text':t,'size':f}
                 i = i + 1
-            save_changes()
+            await save_changes()
 
         input_title.element.onchange = onchange
         select_fontfamily.element.onchange = onchange
-        select_fontsize.element.onchange = onchange
         select_fontweight.element.onchange = onchange
-        for s in screen_select:
-            if s:
-                s.element.onchange = onchange
 
     def show(self):
         main.remove_childs()

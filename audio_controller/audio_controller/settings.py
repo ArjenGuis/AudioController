@@ -59,15 +59,21 @@ default_screens = ['leeg','regels']
 
 
 @dataclass
+class PsalmbordScreen:
+    index: int
+    text: str
+    size: int
+
+
+@dataclass
 class Psalmbord:
     title: str = ""
     regels: List[dict] = field(default_factory=lambda: [])
     fontfamily: str = default_fontfamily
-    fontsize: float = default_fontsize
+    fontsize: int = default_fontsize
     fontweight: int = default_fontweight
     active: int = 1 # if 0, show empty screen (not to confuse with enable_psalmbord)
-    screens: List[str] = field(default_factory=lambda: list(default_screens))
-
+    screens: List[PsalmbordScreen] = field(default_factory=lambda: [])
 
 def psalmbord_as_html() -> str:
     """ Create a html string to display the psalmbord in the browser """
@@ -108,7 +114,8 @@ def psalmbord_as_html() -> str:
             
             content += "</div>\n"
     else:
-        regels = psalmbord.screens[psalmbord.active].splitlines()
+        screen = PsalmbordScreen(**psalmbord.screens[psalmbord.active])
+        regels = screen.text.splitlines()
 
         content = ""
         for r in regels:
@@ -154,20 +161,24 @@ def default_psalmbord():
     result = Psalmbord()
     result.title = "Liturgie"
     result.regels = [{'text': txt} for txt in [
-        "Ps 11 : 1, 3",
-        "Ps 22 : 2, 3",
-        "Exodus 20 : 1-17",
-        "Ps 33 : 1, 2",
-        "Ps 44 : 2, 3",
-        "Ps 55 : 1, 2",
-        "Ps 66 : 2, 3",
-        "H.C. Zondag 34",
+        "Ps 11: 1 3",
+        "Ps 22: 2 3",
+        "Exodus 20:1-17",
+        "Ps 33: 1 2",
+        "Ps 44: 2 3",
+        "Ps 55: 1 2",
+        "Ps 66: 2 3",
+        "HC Zondag 34",
     ]]
     result.fontfamily = default_fontfamily
     result.fontsize = default_fontsize
     result.fontweight = default_fontweight
     result.active = 1
-    result.screens = default_screens
+    result.screens: List[PsalmbordScreen] = field(
+        default_factory=lambda: [PsalmbordScreen(index=i, text=text, size=8) 
+                                 for i, text in enumerate(default_screens)]
+    )
+
     return result
 
 
@@ -239,7 +250,7 @@ def upgrade(store: dict):
     
     if store['settings']['version'] == 10:
         store['settings']['version'] = 11
-        store['psalmbord']['screens'] = default_screens
+        store['psalmbord']['screens'] = []
     
     #
     # future upgrades will be placed here
@@ -544,7 +555,7 @@ def update_destinations(new_destinations: List[dict]):
         pass
 
 
-def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontweight, active: int, screens: List[str]):
+def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize: List[int], fontweight, active: int, screens: List[PsalmbordScreen]):
     temp = Psalmbord(title, regels, fontfamily, fontsize, fontweight, active, screens)
     temp = validate_psalmbord(temp)
     if temp:
