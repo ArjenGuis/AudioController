@@ -28,6 +28,7 @@ fontweights = list(range(300, 900, 100))
 
 # copied from settings.py
 default_screens = ['leeg','regels']
+default_fontsize = 8
 refreshrates = [1,2,3,4,5,10,15,30,60]
 
 
@@ -176,6 +177,7 @@ class Page(ElementWrapper):
             s.element.onchange = onchange
             
             select_fontsize[i] = Select(f"fontsize{i}",fontsizes)
+            select_fontsize[i].element.value = default_fontsize
             select_fontsize[i].element.onchange = onchange
 
             screen_select.append( s )
@@ -227,22 +229,12 @@ class Page(ElementWrapper):
             screen_div.append( div )
 
         def delete_screen(evt):
+            global screen_select
             div = evt.target.closest(".screen")
-            id = div.dataset.id
-
-            if screen_text[id]:
-                screen_text.remove( screen_text[id] )
-            if select_fontsize[id]:
-                select_fontsize.remove( select_fontsize[id] )
-            if screen_key[id]:
-                screen_key.remove( screen_key[id] )
-            if screen_select[id]:
-                screen_select.remove( screen_select[id] )
-            if self.psalmbord['screens'][id]:
-                self.psalmbord['screens'].remove( self.psalmbord['screens'][id] )
             div.remove()
 
-            save_changes()
+            screen_select.pop(div.dataset.id)
+            onchange()
 
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
         button_add_screen.element.onclick = add_screen
@@ -290,28 +282,25 @@ class Page(ElementWrapper):
             self.psalmbord['title'] = input_title.element.value
             self.psalmbord['fontfamily'] = select_fontfamily.element.value
             self.psalmbord['fontweight'] = select_fontweight.element.value
-            self.psalmbord['fontsize'] = 8 # default value, will be updated
+            self.psalmbord['fontsize'] = default_fontsize # default value, will be updated
             self.psalmbord['active'] = 1 # default value, will be updated
             self.psalmbord['refreshrate'] = select_refreshrate.element.value
-            i = 0
+            self.psalmbord['screens'] = []
+
             for s in screen_select:
-                if s:
-                    if s.element.checked:
-                        self.psalmbord['active'] = i
-                        self.psalmbord['fontsize'] = select_fontsize[i].element.value
+                i = s.element.value
+                div = s.element.closest(".screen")
+                fontsize = div.querySelector("select")
+                text = div.querySelector("textarea")
+                
+                if s.element.checked:
+                    self.psalmbord['active'] = i
+                    self.psalmbord['fontsize'] = fontsize.value if fontsize else default_fontsize
 
-                    if screen_text[i] and screen_text[i].element:
-                        t = screen_text[i].element.value
-                    else:
-                        t = screen_text[i]
-                    
-                    if select_fontsize[i] and select_fontsize[i].element:
-                        f = select_fontsize[i].element.value
-                    else:
-                        f = 8
+                t = text.value if text else default_screens[i]
+                f = fontsize.value if fontsize else default_fontsize
 
-                    self.psalmbord['screens'][i] = {'index':f"screen{i}",'text':t,'size':f}
-                i = i + 1
+                self.psalmbord['screens'].append({'index':f"screen{i}",'text':t,'size':f})
             await save_changes()
 
         input_title.element.onchange = onchange

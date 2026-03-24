@@ -566,11 +566,11 @@ def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize: List[
         psalmbord.title = temp.title
         psalmbord.regels = temp.regels
         psalmbord.fontfamily = temp.fontfamily
-        psalmbord.fontsize = temp.fontsize
-        psalmbord.fontweight = temp.fontweight
-        psalmbord.active = temp.active
+        psalmbord.fontsize = int(temp.fontsize)
+        psalmbord.fontweight = int(temp.fontweight)
+        psalmbord.active = int(temp.active)
         psalmbord.screens = temp.screens
-        psalmbord.refreshrate = temp.refreshrate
+        psalmbord.refreshrate = int(temp.refreshrate)
         save()
 
 
