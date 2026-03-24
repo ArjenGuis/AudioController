@@ -137,6 +137,7 @@ class Psalmbord(tornado.web.RequestHandler):
                     "html": settings.psalmbord_as_html(),
                     "css": self.get_css(),
                     "active": settings.psalmbord.active,
+                    "refreshrate": settings.psalmbord.refreshrate
                 }
                 self.write(dumps(result))
             else:
@@ -265,7 +266,7 @@ class General(BaseHandler):
         elif action == "setPsalmbord":
             args = self.body_to_json()
             settings.update_psalmbord(
-                args["title"], args["regels"], args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"]
+                args["title"], args["regels"], args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"], args["refreshrate"]
             )
             self.write(dumps(asdict(settings.psalmbord)))
             return

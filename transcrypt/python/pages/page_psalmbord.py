@@ -6,13 +6,6 @@ from paged_list import PagedList
 from dialogs import dialog_confirm
 E = Element
 
-# copied from fonts.py
-fonts = ["Arial", "Cambria", "Courier New", "Courier Prime", "Georgia", "Gill Sans", "Verdana", "Samsung"]
-
-# copied from settings.py
-default_screens = ['leeg','regels']
-
-
 def frange(start: float, stop: float, step: float):
     """ range() for floats """
     positive = step > 0
@@ -29,10 +22,13 @@ def frange(start: float, stop: float, step: float):
 
 
 # copied from fonts.py
+fonts = ["Arial", "Cambria", "Courier New", "Courier Prime", "Georgia", "Gill Sans", "Verdana", "Samsung"]
 fontsizes = list(range(5, 16))
-
-# copied from fonts.py
 fontweights = list(range(300, 900, 100))
+
+# copied from settings.py
+default_screens = ['leeg','regels']
+refreshrates = [1,2,3,4,5,10,15,30,60]
 
 
 class Select(ElementWrapper):
@@ -80,6 +76,7 @@ class Page(ElementWrapper):
             plist_regels.get_server().data = self.psalmbord['regels']
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontweight.element.value = self.psalmbord['fontweight']
+            select_refreshrate.element.value = self.psalmbord['refreshrate']
 
             if len(self.psalmbord['screens']) == 0:
                 i = 0
@@ -94,6 +91,7 @@ class Page(ElementWrapper):
                     if select_fontsize[i] and select_fontsize[i].element:
                         select_fontsize[i].element.value = t['size']
                 i = i + 1
+            
             if screen_select[self.psalmbord['active']] and screen_select[self.psalmbord['active']].element:
                 screen_select[self.psalmbord['active']].element.checked = True
             else:
@@ -258,6 +256,7 @@ class Page(ElementWrapper):
         select_fontfamily = Select("fontfamily", fonts)
         select_fontsize = []
         select_fontweight = Select("fontsize", fontweights)
+        select_refreshrate = Select("refreshrate", refreshrates)
 
         col_1.append(
             E('div').attr('class', 'form-group row').append(
@@ -267,6 +266,10 @@ class Page(ElementWrapper):
             E('div').attr('class', 'form-group row').append(
                 E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Letterdikte"),
                 E('div').attr('class', '{}'.format(width_3)).append(select_fontweight)
+            ),
+            E('div').attr('class', 'form-group row').append(
+                E('label').attr('class', '{} col-form-label'.format(width_2)).inner_html("Verversen per ... seconden"),
+                E('div').attr('class', '{}'.format(width_3)).append(select_refreshrate)
             ),
         )
         self.append(col_1)
@@ -287,17 +290,21 @@ class Page(ElementWrapper):
             self.psalmbord['title'] = input_title.element.value
             self.psalmbord['fontfamily'] = select_fontfamily.element.value
             self.psalmbord['fontweight'] = select_fontweight.element.value
-            self.psalmbord['active'] = 1
+            self.psalmbord['fontsize'] = 8 # default value, will be updated
+            self.psalmbord['active'] = 1 # default value, will be updated
+            self.psalmbord['refreshrate'] = select_refreshrate.element.value
             i = 0
             for s in screen_select:
                 if s:
                     if s.element.checked:
                         self.psalmbord['active'] = i
                         self.psalmbord['fontsize'] = select_fontsize[i].element.value
+
                     if screen_text[i] and screen_text[i].element:
                         t = screen_text[i].element.value
                     else:
                         t = screen_text[i]
+                    
                     if select_fontsize[i] and select_fontsize[i].element:
                         f = select_fontsize[i].element.value
                     else:
@@ -310,6 +317,7 @@ class Page(ElementWrapper):
         input_title.element.onchange = onchange
         select_fontfamily.element.onchange = onchange
         select_fontweight.element.onchange = onchange
+        select_refreshrate.element.onchange = onchange
 
     def show(self):
         main.remove_childs()

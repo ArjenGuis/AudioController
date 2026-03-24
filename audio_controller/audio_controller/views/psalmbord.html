@@ -37,6 +37,7 @@
         if (hasFailed) {
             location.reload()
         } else {
+            interval = result["refreshrate"]*1000 // milliseconds
             css.html(result["css"])
             container.html(result["html"])
             if(firstAlignment){
