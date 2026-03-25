@@ -82,24 +82,23 @@ class Page(ElementWrapper):
             if len(self.psalmbord['screens']) == 0:
                 i = 0
                 for s in default_screens:
-                    add_screen('',i,s)
+                    add_screen('',i,s,default_fontsize,1)
                     i = i + 1
-
+            
             i = 0
             for t in self.psalmbord['screens']:
-                if i not in screen_key and t:
-                    add_screen('', i, t['text'])
-                    if select_fontsize[i] and select_fontsize[i].element:
-                        select_fontsize[i].element.value = t['size']
+                if i not in screen_index and t:
+                    add_screen('', i, t['text'], t['size'], self.psalmbord['active'])
+                elif i == self.psalmbord['active']:
+                    select_screen[i].element.checked = True
+
+                    # if stored fontsize is different, then update fontsize
+                    select_fontsize = select_screen[i].element.closest(".screen").querySelector("select")
+                    if self.psalmbord['fontsize'] != select_fontsize.value:
+                        self.psalmbord['fontsize'] = select_fontsize.value
+                        save_changes()
                 i = i + 1
             
-            if screen_select[self.psalmbord['active']] and screen_select[self.psalmbord['active']].element:
-                screen_select[self.psalmbord['active']].element.checked = True
-            else:
-                screen_select[1].element.checked = True
-                self.psalmbord['active'] = 1
-                self.psalmbord['fontsize'] = select_fontsize[1].element.value
-                save_changes()
             plist_regels.refresh()
 
         def regel(text: str):
@@ -157,9 +156,8 @@ class Page(ElementWrapper):
         col_1.append(button_add_regel)
 
         # custom screens
-        screen_text = []
-        screen_select = []
-        screen_key = []
+        select_screen = []
+        screen_index = []
 
         screen_div = E('div').attr('class','row')
 
@@ -169,41 +167,40 @@ class Page(ElementWrapper):
         )
 
         # add screen
-        def add_screen(evt, i = screen_select.length, text = ''):
+        def add_screen(evt, i = select_screen.length, text = '', fontsize = default_fontsize, active = None):
             id = f'screen{i}'
             div = E('div').attr('class','{} screen'.format(width_2)).attr('data-id',i)
             
-            s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active').attr('value',i)
+            s = E("input").attr("class", "form-control").attr('id',id).attr("type", "radio").attr('name','active')
+            if i == active:
+                s.element.checked = True
             s.element.onchange = onchange
             
-            select_fontsize[i] = Select(f"fontsize{i}",fontsizes)
-            select_fontsize[i].element.value = default_fontsize
-            select_fontsize[i].element.onchange = onchange
+            select_fontsize = Select(f"fontsize{i}",fontsizes)
+            select_fontsize.element.value = fontsize
+            select_fontsize.element.onchange = onchange
 
-            screen_select.append( s )
-            screen_key.append( i )
+            select_screen.append( s )
+            screen_index.append( i )
 
             if i == 0 and text == 'leeg':
                 l = 'Leeg'
                 f = None
                 d = None
                 t = None
-                screen_text.append( text )
             elif i == 1 and text == 'regels':
-                #select_fontsize.attr('name',f"size{i}")
                 l = 'Met regels'
                 f = E('div').append(
                         E('label').attr('style', 'width:60%').inner_html("Aantal regels"),
-                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize[i])
+                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize)
                     )
                 d = None
                 t = None
-                screen_text.append( text )
             else:
                 l = 'Met tekst'
                 f = E('div').append(
                         E('label').attr('style', 'width:60%').inner_html("Aantal regels"),
-                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize[i])
+                        E('div').attr('style', 'display:inline-block;width:40%').append(select_fontsize)
                     )
                 
                 d = E('button').attr('class','btn btn-danger btn-sm').attr('style','float:right; margin: 5px 0;').append( E('i').attr("class", 'fas fa-trash-alt') )
@@ -212,7 +209,6 @@ class Page(ElementWrapper):
                 t = E('textarea').attr('name',id)
                 t.element.value = text
                 t.element.onchange = onchange
-                screen_text.append( t )
 
             div.append(
                 s,
@@ -225,15 +221,15 @@ class Page(ElementWrapper):
             if t:
                 div.append(t)
             
-            self.psalmbord['screens'][i] = {'index':id,'text':text,'size':12}
+            self.psalmbord['screens'][i] = {'index':id,'text':text,'size':fontsize}
             screen_div.append( div )
 
         def delete_screen(evt):
-            global screen_select
+            global select_screen
             div = evt.target.closest(".screen")
             div.remove()
 
-            screen_select.pop(div.dataset.id)
+            select_screen.pop(div.dataset.id)
             onchange()
 
         button_add_screen = E('button').attr('class', 'btn btn-primary btn-sm').inner_html("Scherm toevoegen")
@@ -246,8 +242,7 @@ class Page(ElementWrapper):
 
         # config settings
         select_fontfamily = Select("fontfamily", fonts)
-        select_fontsize = []
-        select_fontweight = Select("fontsize", fontweights)
+        select_fontweight = Select("fontweight", fontweights)
         select_refreshrate = Select("refreshrate", refreshrates)
 
         col_1.append(
@@ -287,20 +282,20 @@ class Page(ElementWrapper):
             self.psalmbord['refreshrate'] = select_refreshrate.element.value
             self.psalmbord['screens'] = []
 
-            for s in screen_select:
-                i = s.element.value
-                div = s.element.closest(".screen")
-                fontsize = div.querySelector("select")
-                text = div.querySelector("textarea")
+            i = 0
+            for s in select_screen:
+                select_fontsize = s.element.closest(".screen").querySelector("select")
+                text = s.element.closest(".screen").querySelector("textarea")
                 
                 if s.element.checked:
                     self.psalmbord['active'] = i
-                    self.psalmbord['fontsize'] = fontsize.value if fontsize else default_fontsize
+                    self.psalmbord['fontsize'] = select_fontsize.value if select_fontsize else default_fontsize
 
                 t = text.value if text else default_screens[i]
-                f = fontsize.value if fontsize else default_fontsize
+                f = select_fontsize.value if select_fontsize else default_fontsize
 
                 self.psalmbord['screens'].append({'index':f"screen{i}",'text':t,'size':f})
+                i = i + 1
             await save_changes()
 
         input_title.element.onchange = onchange
