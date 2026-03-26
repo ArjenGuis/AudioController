@@ -271,8 +271,8 @@ class Page(ElementWrapper):
         async def onchange(evt):
             self.psalmbord['title'] = input_title.element.value
             self.psalmbord['fontfamily'] = select_fontfamily.element.value
-            self.psalmbord['fontweight'] = select_fontweight.element.value
             self.psalmbord['fontsize'] = default_fontsize # default value, will be updated
+            self.psalmbord['fontweight'] = select_fontweight.element.value
             self.psalmbord['active'] = 1 # default value, will be updated
             self.psalmbord['refreshrate'] = select_refreshrate.element.value
             self.psalmbord['screens'] = []
