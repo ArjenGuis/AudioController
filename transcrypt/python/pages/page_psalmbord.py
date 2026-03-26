@@ -91,6 +91,10 @@ class Page(ElementWrapper):
             plist.refresh()
 
             if len(self.psalmbord['screens']) == 0:
+                # self.psalmbord['screens'] is still empty at first time, fill with default screens. 
+                ## dit is misschien niet nodig als in settings.py bij upgrade() version 9:
+                ##   store['psalmbord']['screens'] = []
+                ## met dictionary van default screens gevuld wordt?
                 i = 0
                 for s in default_screens:
                     add_screen('',i,s,default_fontsize,1)
@@ -98,13 +102,18 @@ class Page(ElementWrapper):
             
             i = 0
             for t in self.psalmbord['screens']:
+                ## idealiter zou ik de screen_index list opruimen, 
+                ## maar hoe check ik anders of het item uit self.psalmbord['screens'] al op de pagina toegevoegd is?
                 if i not in screen_index and t:
                     add_screen('', i, t['text'], t['size'], self.psalmbord['active'])
                 elif i == self.psalmbord['active']:
+                    # set active screen checked
                     screens = screen_div.element.querySelectorAll(".screen")
                     screens[i].querySelector("input").checked = True
 
-                    # if stored fontsize is different, then update fontsize
+                    # if the saved font size differs from this active screen, it must be updated
+                    # the difference can be caused by removing an active screen
+                    # screen 1 'met regels' then becomes active automatically
                     fontsize = screens[i].querySelector("select").value
                     if self.psalmbord['fontsize'] != fontsize:
                         self.psalmbord['fontsize'] = fontsize
