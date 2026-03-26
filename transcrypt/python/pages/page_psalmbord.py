@@ -88,6 +88,7 @@ class Page(ElementWrapper):
             select_fontfamily.element.value = self.psalmbord['fontfamily']
             select_fontweight.element.value = self.psalmbord['fontweight']
             select_refreshrate.element.value = self.psalmbord['refreshrate']
+            plist.refresh()
 
             if len(self.psalmbord['screens']) == 0:
                 i = 0
@@ -109,8 +110,6 @@ class Page(ElementWrapper):
                         self.psalmbord['fontsize'] = select_fontsize.value
                         save_changes()
                 i = i + 1
-            
-            plist.refresh()
 
         async def delete_regel(item):
             self.psalmbord['regels'].remove(item)
