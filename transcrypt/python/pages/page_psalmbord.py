@@ -105,9 +105,9 @@ class Page(ElementWrapper):
                     screens[i].querySelector("input").checked = True
 
                     # if stored fontsize is different, then update fontsize
-                    select_fontsize = screens[i].querySelector("select")
-                    if self.psalmbord['fontsize'] != select_fontsize.value:
-                        self.psalmbord['fontsize'] = select_fontsize.value
+                    fontsize = screens[i].querySelector("select").value
+                    if self.psalmbord['fontsize'] != fontsize:
+                        self.psalmbord['fontsize'] = fontsize
                         save_changes()
                 i = i + 1
 
