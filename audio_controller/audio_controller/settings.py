@@ -250,9 +250,6 @@ def upgrade(store: dict):
     if store['settings']['version'] == 9:
         store['settings']['version'] = 10
         store['psalmbord']['active'] = 1
-    
-    if store['settings']['version'] == 10:
-        store['settings']['version'] = 11
         store['psalmbord']['screens'] = []
         store['psalmbord']['refreshrate'] = 10
     
