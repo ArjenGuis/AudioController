@@ -53,6 +53,7 @@ class Page(ElementWrapper):
             return {"text": text}
 
         # col_1 = left column with config forms
+        ## weet niet of 75% | 25% verdeling op de pi goed verdeelt, aangezien die 25% wel minimaal 360px breed moet zijn
         col_1 = E('div').attr('style', 'float: left; width: 75%')
 
         # config item: titel regel
