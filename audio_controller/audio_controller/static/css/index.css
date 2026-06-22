@@ -197,9 +197,9 @@ div.screen input {
   margin-right: 10px;
 }
 div.screen textarea {
-  height: 355px;
+  height: 360px;
   margin-bottom: 15px;
-  width: 200px;
+  width: 100%;
 }
 
 .psalmbord_heading {
