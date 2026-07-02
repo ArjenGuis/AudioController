@@ -55,7 +55,7 @@ class Destination:
 default_fontfamily = fonts.validate_font_name("Samsung", True)
 default_fontsize = fonts.validate_font_size(8, True)
 default_fontweight = fonts.validate_font_weight(400, True)
-default_screens = ['leeg','regels']
+default_screens = ['Ps 45:1\n10 GEB:9\nRom. 3:1-10\nPs 89:4\nPs 103:7\nPs 116:1 2 3\n\nHC Zondag 23','']
 refreshrates = [1,2,3,4,5,10,15,30,60]
 
 
@@ -68,13 +68,11 @@ class PsalmbordScreen:
 
 @dataclass
 class Psalmbord:
-    title: str = ""
-    regels: List[dict] = field(default_factory=lambda: [])
     fontfamily: str = default_fontfamily
     fontsize: int = default_fontsize
     fontweight: int = default_fontweight
     active: int = 1 # if 0, show empty screen (not to confuse with enable_psalmbord)
-    screens: List[PsalmbordScreen] = field(default_factory=lambda: [])
+    screens: List[PsalmbordScreen] = field(default_factory=list)
     refreshrate: int = 10
 
 def psalmbord_as_html() -> str:
@@ -149,25 +147,14 @@ def default_destinations():
 def default_psalmbord():
     """ Default Psalmbord, used as initial and factory defaults """
     result = Psalmbord()
-    result.title = "Liturgie"
-    result.regels = [{'text': txt} for txt in [
-        "Ps 11:1 3",
-        "Ps 22:2 3",
-        "Exodus 20:1-17",
-        "Ps 33:1 2",
-        "Ps 44:2 3",
-        "Ps 55:1 2",
-        "Ps 66:2 3",
-        "HC Zondag 34",
-    ]]
     result.fontfamily = default_fontfamily
     result.fontsize = default_fontsize
     result.fontweight = default_fontweight
     result.active = 1
-    result.screens: List[PsalmbordScreen] = field(
-        default_factory=lambda: [PsalmbordScreen(index=i, text=text, size=8) 
-                                 for i, text in enumerate(default_screens)]
-    )
+    result.screens = [
+        PsalmbordScreen(index=i, text=text, size=8)
+        for i, text in enumerate(default_screens)
+    ]
     result.refreshrate = 10
 
     return result
@@ -238,7 +225,10 @@ def upgrade(store: dict):
     if store['settings']['version'] == 9:
         store['settings']['version'] = 10
         store['psalmbord']['active'] = 1
-        store['psalmbord']['screens'] = []
+        store['psalmbord']['screens'] = [
+            PsalmbordScreen(index=i, text=text, size=8)
+            for i, text in enumerate(default_screens)
+        ]
         store['psalmbord']['refreshrate'] = 10
     
     #
@@ -437,16 +427,6 @@ def validate_destination_attribute(name: str, value):
 def validate_psalmbord(obj: Psalmbord):
     """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
     try:
-        obj.title = obj.title[:100]  # max 100 characters
-        if len(obj.regels) > 50:  # max 50 regels
-            return None
-        default_regel_keys = sorted(list(default_psalmbord().regels[0].keys()))
-
-        for regel in obj.regels:
-            if not sorted(list(regel.keys())) == default_regel_keys:
-                return None
-            regel['text'] = regel['text'][0:100]  # max 100 characters
-
         obj.fontfamily = str(obj.fontfamily)
         if not fonts.validate_font_name(obj.fontfamily):
             return None
@@ -544,12 +524,10 @@ def update_destinations(new_destinations: List[dict]):
         pass
 
 
-def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize: List[int], fontweight, active: int, screens: List[PsalmbordScreen], refreshrate: int):
-    temp = Psalmbord(title, regels, fontfamily, fontsize, fontweight, active, screens, refreshrate)
+def update_psalmbord(fontfamily, fontsize: List[int], fontweight, active: int, screens: List[PsalmbordScreen], refreshrate: int):
+    temp = Psalmbord(fontfamily, fontsize, fontweight, active, screens, refreshrate)
     temp = validate_psalmbord(temp)
     if temp:
-        psalmbord.title = temp.title
-        psalmbord.regels = temp.regels
         psalmbord.fontfamily = temp.fontfamily
         psalmbord.fontsize = int(temp.fontsize)
         psalmbord.fontweight = int(temp.fontweight)

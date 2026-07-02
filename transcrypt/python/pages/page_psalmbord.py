@@ -27,7 +27,7 @@ fontsizes = list(range(5, 16))
 fontweights = list(range(300, 900, 100))
 
 # copied from settings.py
-default_screens = ['leeg','regels']
+default_screens = ['Ps 45:1\n10 GEB:9\nRomeinen 3:1-10\nPs 89:4\nPs 103:7\nPs 116:1 2 3 4\nHC Zondag 23','']
 default_fontsize = 8
 refreshrates = [1,2,3,4,5,10,15,30,60]
 
