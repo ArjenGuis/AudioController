@@ -5,7 +5,7 @@ from pathlib import Path
 import pickle
 from dataclasses import dataclass, field, asdict
 
-from . import fonts
+from . import psalmbord
 
 #
 # Classes and default settings
@@ -52,66 +52,6 @@ class Destination:
     id: int = 0
 
 
-default_fontfamily = fonts.validate_font_name("Samsung", True)
-default_fontsize = fonts.validate_font_size(8, True)
-default_fontweight = fonts.validate_font_weight(400, True)
-default_screens = ['Ps 45:1\n10 GEB:9\nRom. 3:1-10\nPs 89:4\nPs 103:7\nPs 116:1 2 3\n\nHC Zondag 23','']
-refreshrates = [1,2,3,4,5,10,15,30,60]
-
-
-@dataclass
-class PsalmbordScreen:
-    index: int
-    text: str
-    size: int
-
-
-@dataclass
-class Psalmbord:
-    fontfamily: str = default_fontfamily
-    fontsize: int = default_fontsize
-    fontweight: int = default_fontweight
-    active: int = 1 # if 0, show empty screen (not to confuse with enable_psalmbord)
-    screens: List[PsalmbordScreen] = field(default_factory=list)
-    refreshrate: int = 10
-
-def psalmbord_as_html() -> str:
-    """ Create a html string to display the psalmbord in the browser """
-
-    screen = PsalmbordScreen(**psalmbord.screens[psalmbord.active])
-    regels = screen.text.splitlines()
-
-    content = ""
-    for r in regels:
-        content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
-
-        col = r.strip().split(":")
-        if len(col) > 1:
-            # regel with three columns
-            content += "<span class='col1'>"
-            for col1 in col[0].split(" "):
-                if col1.strip() != "":
-                    content += f"<span>{col1}</span>"
-            content += "</span>"
-
-            content += "<span class='col2'>:</span>"
-
-            content += "<span class='col3'>"
-            for col3 in col[1].split(" "):
-                if col3.strip() != "":
-                    content += f"<span>{col3}</span>"
-            content += "</span>"
-        else:
-            # regel without columns
-            """ replace optional ";" with ":" to prevent splitting and alignment """
-            regel_text = r.replace(";",":")
-            content += f"<span class='no-col'>{regel_text}</span>"
-        
-        content += "</div>\n"
-
-    return content
-
-
 def default_sources():
     """ Default sources, used as initial and factory defaults """
     result = [
@@ -144,22 +84,6 @@ def default_destinations():
     return result
 
 
-def default_psalmbord():
-    """ Default Psalmbord, used as initial and factory defaults """
-    result = Psalmbord()
-    result.fontfamily = default_fontfamily
-    result.fontsize = default_fontsize
-    result.fontweight = default_fontweight
-    result.active = 1
-    result.screens = [
-        PsalmbordScreen(index=i, text=text, size=8)
-        for i, text in enumerate(default_screens)
-    ]
-    result.refreshrate = 10
-
-    return result
-
-
 #
 # Stores / databases
 #
@@ -170,7 +94,7 @@ file = Path.home() / ".audio_controller_settings.pickle"
 settings = Settings()
 sources: List[Source] = []
 destinations: List[Destination] = []
-psalmbord = Psalmbord()
+pb = psalmbord.Psalmbord()
 
 #
 # Save and load
@@ -201,13 +125,13 @@ def upgrade(store: dict):
     if store['settings']['version'] == 5:
         store['settings']['version'] = 6
         store['settings']['enable_psalmbord'] = False
-        store['psalmbord'] = asdict(default_psalmbord())
+        store['psalmbord'] = asdict(psalmbord.Psalmbord())
 
     if store['settings']['version'] == 6:
         store['settings']['version'] = 7
-        store['psalmbord']['fontfamily'] = default_fontfamily
-        store['psalmbord']['fontsize'] = default_fontsize
-        store['psalmbord']['fontweight'] = default_fontweight
+        store['psalmbord']['fontfamily'] = psalmbord.default_fontfamily
+        store['psalmbord']['fontsize'] = psalmbord.default_fontsize
+        store['psalmbord']['fontweight'] = psalmbord.default_fontweight
 
     if store['settings']['version'] == 7:
         store['settings']['version'] = 8
@@ -226,8 +150,8 @@ def upgrade(store: dict):
         store['settings']['version'] = 10
         store['psalmbord']['active'] = 1
         store['psalmbord']['screens'] = [
-            PsalmbordScreen(index=i, text=text, size=8)
-            for i, text in enumerate(default_screens)
+            psalmbord.PsalmbordScreen(index=i, text=text, size=8)
+            for i, text in enumerate(psalmbord.default_screens)
         ]
         store['psalmbord']['refreshrate'] = 10
     
@@ -245,7 +169,7 @@ def use_from_store(store: dict):
     destinations.clear()
     for obj in store['sources']: sources.append(Source(**obj))
     for obj in store['destinations']: destinations.append(Destination(**obj))
-    psalmbord.__init__(**store['psalmbord'])
+    pb.__init__(**store['psalmbord'])
 
 
 def load():
@@ -269,7 +193,7 @@ def save():
             'settings': asdict(settings),
             'sources': [asdict(obj) for obj in sources],
             'destinations': [asdict(obj) for obj in destinations],
-            'psalmbord': asdict(psalmbord),
+            'psalmbord': asdict(pb),
         }
         f.write(pickle.dumps(store))
 
@@ -280,7 +204,7 @@ def restore():
         'settings': asdict(Settings()),
         'sources': [asdict(obj) for obj in default_sources()],
         'destinations': [asdict(obj) for obj in default_destinations()],
-        'psalmbord': asdict(default_psalmbord()),
+        'psalmbord': asdict(psalmbord.Psalmbord()),
     }
     use_from_store(store)
     save()
@@ -423,27 +347,6 @@ def validate_destination_attribute(name: str, value):
     except:
         return None
 
-
-def validate_psalmbord(obj: Psalmbord):
-    """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
-    try:
-        obj.fontfamily = str(obj.fontfamily)
-        if not fonts.validate_font_name(obj.fontfamily):
-            return None
-        obj.fontsize = float(obj.fontsize)
-        if not fonts.validate_font_size(obj.fontsize):
-            return None
-        obj.fontweight = int(obj.fontweight)
-        if not fonts.validate_font_weight(obj.fontweight):
-            return None
-
-        return obj
-    except:
-        return None
-
-
-assert validate_psalmbord(default_psalmbord()), "Default psalmbord is not valid"
-
 #
 # Updates
 #
@@ -522,19 +425,6 @@ def update_destinations(new_destinations: List[dict]):
         save()
     except:
         pass
-
-
-def update_psalmbord(fontfamily, fontsize: List[int], fontweight, active: int, screens: List[PsalmbordScreen], refreshrate: int):
-    temp = Psalmbord(fontfamily, fontsize, fontweight, active, screens, refreshrate)
-    temp = validate_psalmbord(temp)
-    if temp:
-        psalmbord.fontfamily = temp.fontfamily
-        psalmbord.fontsize = int(temp.fontsize)
-        psalmbord.fontweight = int(temp.fontweight)
-        psalmbord.active = int(temp.active)
-        psalmbord.screens = temp.screens
-        psalmbord.refreshrate = int(temp.refreshrate)
-        save()
 
 
 def test():

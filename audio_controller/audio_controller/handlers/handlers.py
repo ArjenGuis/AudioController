@@ -21,7 +21,7 @@ import tornado.web
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, controller, utils, loggers, gpio, __version__
+from audio_controller import settings, psalmbord, controller, utils, loggers, gpio, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -107,43 +107,6 @@ class Main(BaseHandler):
 
     def post(self):
         self.write("")
-
-
-class Psalmbord(tornado.web.RequestHandler):
-
-    def body_to_json(self):
-        body = self.request.body
-        if not body:
-            body = b"{}"
-        return json.loads(body)
-    
-    def get_css(self):
-        fs = settings.psalmbord.fontsize
-        fw = settings.psalmbord.fontweight
-        return f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
-
-    def get(self):
-        if settings.settings.enable_psalmbord:
-            self.render("psalmbord.html", css=self.get_css())
-        else:
-            html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
-            self.write(html)
-
-    def post(self):
-        if settings.settings.enable_psalmbord:
-            kwargs = self.body_to_json()
-            if kwargs.get("html"):
-                result = {
-                    "html": settings.psalmbord_as_html(),
-                    "css": self.get_css(),
-                    "active": settings.psalmbord.active,
-                    "refreshrate": settings.psalmbord.refreshrate
-                }
-                self.write(dumps(result))
-            else:
-                self.write(dumps(asdict(settings.psalmbord)))
-        else:
-            self.write(dumps(asdict(settings.Psalmbord())))
 
 
 class Login(BaseHandler):
@@ -260,15 +223,15 @@ class General(BaseHandler):
             return
 
         elif action == "getPsalmbord":
-            self.write(dumps(asdict(settings.psalmbord)))
+            self.write(dumps(asdict(settings.pb)))
             return
 
         elif action == "setPsalmbord":
             args = self.body_to_json()
-            settings.update_psalmbord(
+            settings.pb.update_psalmbord(
                 args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"], args["refreshrate"]
             )
-            self.write(dumps(asdict(settings.psalmbord)))
+            self.write(dumps(asdict(settings.pb)))
             return
 
         elif action == "getInputLevels":
