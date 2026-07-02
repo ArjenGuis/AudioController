@@ -2,23 +2,8 @@ __pragma__('alias', 'S', '$')  # to use jQuery library with 'S' instead of '$'
 import utils
 from elements import Element, element, ElementWrapper, get_Element, get_elements, get_element
 from layout import home, main, set_title
-from paged_list import PagedList
 from dialogs import dialog_confirm
 E = Element
-
-def frange(start: float, stop: float, step: float):
-    """ range() for floats """
-    positive = step > 0
-    result = start
-
-    if positive:
-        def running(): return (result < stop)
-    else:
-        def running(): return (result > stop)
-
-    while running():
-        yield result
-        result += step
 
 
 # copied from fonts.py

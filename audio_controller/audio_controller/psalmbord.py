@@ -135,9 +135,6 @@ class PsalmbordHandler(tornado.web.RequestHandler):
         if settings.settings.enable_psalmbord:
             kwargs = self.body_to_json()
             if kwargs.get("html"):
-                """
-                    pb = psalmbord.Psalmbord()
-                """
                 result = {
                     "html": settings.pb.psalmbord_as_html(),
                     "css": self.get_css(),
