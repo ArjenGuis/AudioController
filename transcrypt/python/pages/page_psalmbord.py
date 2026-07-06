@@ -140,6 +140,17 @@ class Page(ElementWrapper):
             ),
         )
 
+        # help
+        self.append( E('p').attr('class','psalmbord_heading').inner_html('Uitleg') )
+        self.append( 
+            E('ul').append(
+                E('li').inner_html("Begin een regel met _ om te centreren"),
+                E('li').inner_html("Gebruik een : om automatisch uit te lijnen"),
+                E('li').inner_html("Gebruik een ; om niet automatisch uit te lijnen, de ; wordt als : getoond"),
+                E('li').inner_html("Voeg een leeg scherm toe om psalmbord eenvoudig 'op zwart' te zetten"),
+            )
+        )
+
         async def initialize():
             self.psalmbord = await utils.post(utils.get_url('general/getPsalmbord'), {})
             set_inputs()

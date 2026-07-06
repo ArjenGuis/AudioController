@@ -21,7 +21,7 @@ import tornado.web
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, psalmbord, controller, utils, loggers, gpio, __version__
+from audio_controller import settings, controller, utils, loggers, gpio, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")

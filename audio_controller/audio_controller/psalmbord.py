@@ -47,12 +47,17 @@ class Psalmbord:
     def psalmbord_as_html(self) -> str:
         """ Create a html string to display the psalmbord in the browser """
 
-        #screen = PsalmbordScreen(**screens[self.active])
         regels = self.screens[self.active]["text"].splitlines()
 
         content = ""
         for r in regels:
-            content += f"<div class='regel font_weight {fonts.fonts[self.fontfamily]}'>"
+            css = "regel font_weight"
+            css += f" {fonts.fonts[self.fontfamily]}"
+            if r.startswith('_'):
+                css += " title"
+                r = r[1:]
+
+            content += f"<div class='{css}'>"
 
             col = r.strip().split(":")
             if len(col) > 1:
