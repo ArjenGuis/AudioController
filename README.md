@@ -72,6 +72,7 @@ python -m pip install pyserial
 python -m pip install tornado
 python -m pip install python-socketio
 python -m pip install python-decouple
+python -m pip install onvif-zeep
 ```
 
 Optional:

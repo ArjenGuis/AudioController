@@ -1,0 +1,272 @@
+@font-face {
+    font-family: 'SamsungOne 700';
+    font-style: normal;
+    font-weight: normal;
+    src: local('SamsungOne 700'), url('SamsungOne-700.woff') format('woff');
+}
+
+body {
+	background-color: black;
+	box-sizing: border-box;
+	color: #EEE;
+	font-family: 'SamsungOne 700', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	font-size: 18px;
+	padding: 0 0 150px 0;
+	margin: 0;
+	text-align: center;
+}
+h1 {
+	font-size: 24px;
+	font-weight: normal;
+	margin: 15px 0;
+}
+p {
+	margin: 20px 0;
+	padding: 5px 0;
+}
+ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+button {
+	cursor: pointer;
+	font-size: inherit;
+	font-family: inherit;
+	padding: 5px 10px;
+}
+a,
+a:visited {
+	color: inherit;
+}
+a:hover {
+	text-decoration: none;
+}
+.clearfix {
+	clear: both;
+}
+.d-none {
+	display: none !important;
+}
+
+#debug {
+	color: red;
+}
+
+/*
+ * LOGIN
+ */
+#login {
+	background-color: #eee;
+	border-radius: 5px;
+	display: flex;
+	flex-wrap: wrap;
+	margin: 20px;
+	padding: 10px;
+	text-align: center;
+}
+#login input {
+	font-size: inherit;
+	margin-bottom: 10px;
+	padding: 10px;
+	width: 100%;
+}
+#login button {
+	padding: 10px;
+	width: 100%;
+}
+#login .fout {
+	color: red;
+	width: 100%;
+}
+
+/*
+ * CAMS
+ */
+ #cams {
+	padding: 0 15px;
+ }
+ #cams ul {
+	display: flex;
+	flex-wrap: wrap;
+ }
+ #cams li {
+	float: left;
+	margin: 10px;
+	width: calc(50% - 20px);
+}
+#cams button,
+#presets button,
+#move button,
+#reboot {
+	background-color: black;
+	border-radius: 5px;
+	border: solid 1px #EEE;
+	color: #EEE;
+	width: 100%;
+}
+#cams button:hover,
+#cams button.active:hover,
+#presets button:hover,
+#move button:hover {
+	background-color: #999;
+	color: black;
+}
+#cams button.active,
+#presets button.active {
+	background-color: #EEE;
+	color: black
+}
+
+/*
+ * LIVE
+ */
+#live {
+	background-color: inherit;
+	margin: 10px 0;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+/*
+ * PRESETS
+ */
+ #presets ul {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+ }
+ #presets ul li {
+	align-items: center;
+	display: flex;
+	margin: 10px;
+	text-align: left;
+	width: calc(50% - 20px);
+}
+#presets button {
+	font-weight: bold;
+	font-size: larger;
+	min-height: 50px;
+	height: 100%;
+	margin-right: 10px;
+	width: 50px;
+}
+#presets .label {
+	display: inline-block;
+	max-width: calc(100% - 60px);
+	word-break: break-all;
+}
+#presets .basic {
+	width: initial;
+}
+#presets .basic .label {
+	display: none;
+}
+#presets .basic button {
+	margin-right: 0;
+}
+
+#reboot {
+	width: 50%;
+}
+#reboot:hover {
+	border-color: red;
+	color: red;
+}
+
+/*
+ * MOVE 
+ */
+#move .ptzmove {
+	background-position: center center;
+	background-repeat: no-repeat;
+	background-size: 50%;
+	display: inline-block;
+	height: 50px;
+	margin: 10px;
+	vertical-align: middle;
+	width: 50px;
+}
+
+#move .tl {
+	background-image: url(/ptzcam/icon/arrow_tl.png);
+}
+#move .tm {
+	background-image: url(/ptzcam/icon/arrow_tm.png);
+}
+#move .tr {
+	background-image: url(/ptzcam/icon/arrow_tr.png);
+}
+#move .ml {
+	background-image: url(/ptzcam/icon/arrow_ml.png);
+}
+#move .mm {
+	background-image: url(/ptzcam/icon/arrow_mm.png);
+}
+#move .mr {
+	background-image: url(/ptzcam/icon/arrow_mr.png);
+}
+#move .bl {
+	background-image: url(/ptzcam/icon/arrow_bl.png);
+}
+#move .bm {
+	background-image: url(/ptzcam/icon/arrow_bm.png);
+}
+#move .br {
+	background-image: url(/ptzcam/icon/arrow_br.png);
+}
+#move .zoomin {
+	background-image: url(/ptzcam/icon/zoomin.png);
+}
+#move .zoomout {
+	background-image: url(/ptzcam/icon/zoomout.png);
+}
+
+/*
+ * FOOTER 
+ */
+#footer {
+	border-top: solid 1px white;
+	border-bottom: solid 1px white;
+	margin: 20px 0;
+}
+
+/*
+ * DESKTOP MODE
+ */
+@media only screen and (min-width: 600px) {
+	body {
+		padding: 0; /* reset padding-bottom */
+	}
+
+	#login { 
+		max-width: 500px;
+		margin: 50px auto; /* center horizontal */
+	}
+	.clearfix {
+		clear: none; /* unset */
+	}
+
+	#live {
+		float: left;
+		width: 75%;
+	}
+	#cams {
+		float: right;
+		margin-bottom: 30px;
+		width: calc(25% - 30px);
+	}
+	#presets,
+	#move, 
+	#streaming,
+	#footer {
+		clear: right;
+		float: right;
+		width: 25%;
+	}
+}
+
+.xdebug-error {
+	color: black;
+}
