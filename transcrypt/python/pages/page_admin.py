@@ -403,6 +403,62 @@ class Destinations(AccordionItem):
 
         self.refresh = initialize
 
+def camera(name, url_intern, url_extern, port_http, port_onvif, port_ws, username, password):
+    return {
+        "name": name, 
+        "url_intern": url_intern, 
+        "url_extern": url_extern, 
+        "port_http": port_http, 
+        "port_onvif": port_onvif, 
+        "port_ws": port_ws, 
+        "username": username, 
+        "password": password
+    }
+
+
+class Cameras(AccordionItem):
+    def __init__(self):
+        super().__init__("Camera's")
+        plist = PagedList(self.body.element, "").hide_count().disable_pagination()
+        plist.get_styling().table_class("table borderless")
+
+        def text_element(attr, item):
+            r = E("input").attr("type", "text")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def checkbox_element(attr, item):
+            r = E("input").attr("type", "checkbox")
+            r.element.checked = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.checked
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        plist.add_column("name", "Naam").item_to_element(text_element.bind(None, "name"))
+        plist.add_column("url_intern", "IP").item_to_element(text_element.bind(None, "url_intern"))
+        plist.add_column("url_extern", "URL").item_to_element(text_element.bind(None, "url_extern"))
+        plist.add_column("port_http", ":HTTP").item_to_element(text_element.bind(None, "port_http"))
+        plist.add_column("port_onvif", ":ONVIF").item_to_element(text_element.bind(None, "port_onvif"))
+        plist.add_column("port_ws", ":WS").item_to_element(text_element.bind(None, "port_ws"))
+        plist.add_column("username", "Gebruikersnaam").item_to_element(text_element.bind(None, "username"))
+        plist.add_column("password", "Wachtwoord").item_to_element(text_element.bind(None, "password"))
+
+        async def initialize():
+            self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        self.refresh = initialize
 
 class TestDebug(AccordionItem):
     def __init__(self):
@@ -495,7 +551,7 @@ class Page(ElementWrapper):
     def __init__(self):
         super().__init__(element("div"))
         self.attr("style", "max-width: 1000px;")
-        self.items = [Settings(), Sources(), Destinations(), TestDebug()]
+        self.items = [Settings(), Sources(), Destinations(), Cameras(), TestDebug()]
         for i in self.items:
             self.append(i)
 

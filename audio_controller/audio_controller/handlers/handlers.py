@@ -214,6 +214,9 @@ class General(BaseHandler):
         def write_destinations():
             self.write(dumps([asdict(obj) for obj in settings.destinations]))
 
+        def write_cameras():
+            self.write(dumps([asdict(obj) for obj in settings.cameras]))
+
         if action == "restoreSettings":
             settings.restore()
             write_settings()
@@ -269,6 +272,17 @@ class General(BaseHandler):
             )
             self.write(dumps(asdict(settings.psalmbord)))
             return
+
+        elif action == "getCameras":
+            write_cameras()
+            return
+
+        elif action == "setCameras":
+            args = self.body_to_json()
+            cameras = args["cameras"]
+            settings.update_cameras(cameras)
+            write_cameras()
+            await notify_change()
 
         elif action == "getInputLevels":
             levels = controller.config.current_levels

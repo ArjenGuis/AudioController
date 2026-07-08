@@ -5,7 +5,7 @@ from pathlib import Path
 import pickle
 from dataclasses import dataclass, field, asdict
 
-from . import fonts
+from . import fonts, camera
 
 #
 # Classes and default settings
@@ -417,6 +417,17 @@ def validate_destination_attribute(name: str, value):
         return None
 
 
+def validate_camera_attribute(name: str, value):
+    """ Validate value for attribute with name of a Camera object.
+    Return value, or adjusted value, or None if it is not valid. """
+    try:
+        if name == 'name':
+            return value[0:50]  # max 50 characters
+        return value
+    except:
+        return None
+
+
 def validate_psalmbord(obj: Psalmbord):
     """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
     try:
@@ -539,6 +550,32 @@ def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontw
         psalmbord.active = temp.active
         save()
 
+def update_cameras(new_cameras: List[dict]):
+    """ Compare cameras with current cameras, and update the current.
+    Each object must contain at least all attributes required to create Camera.
+    It may contain more, which will be ignored. """
+    try:
+        # convert all sources to the correct type, let it raise an Exception if its not possible
+        fields = Camera.__annotations__.copy()
+        del fields['id']  # do not copy id
+        # create a temporary list, to first validate everything, and then copy
+        new_list: List[Camera] = []
+        for i, obj in enumerate(new_cameras):
+            new_obj = {}
+            # copy attributes
+            for attr, value_type in fields.items():
+                # cast and validate value
+                value = validate_camera_attribute(attr, value_type(obj[attr]))
+                if value is not None:
+                    new_obj[attr] = value
+            new_obj = Camera(**new_obj)
+            new_obj.id = i
+            new_list.append(new_obj)
+        cameras.clear()
+        for obj in new_list: cameras.append(obj)
+        save()
+    except:
+        pass
 
 def test():
     return

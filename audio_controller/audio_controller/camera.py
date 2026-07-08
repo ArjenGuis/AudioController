@@ -1,3 +1,4 @@
+from typing import Any
 from dataclasses import dataclass, field
 from onvif import ONVIFCamera
 import json
@@ -34,11 +35,11 @@ class Camera:
     #
 
     # ONVIF-objecten
-    _cam = field(init=False, default=None, repr=False)
-    _media = field(init=False, default=None, repr=False)
-    _ptz = field(init=False, default=None, repr=False)
-    _device = field(init=False, default=None, repr=False)
-    _profile = field(init=False, default=None, repr=False)
+    _cam: ONVIFCamera | None = field(init=False, default=None, repr=False)
+    _media: Any | None = field(init=False, default=None, repr=False)
+    _ptz: Any | None = field(init=False, default=None, repr=False)
+    _device: Any | None = field(init=False, default=None, repr=False)
+    _profile: Any | None = field(init=False, default=None, repr=False)
 
     def connect(self):
         self._cam = ONVIFCamera(
