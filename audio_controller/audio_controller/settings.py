@@ -28,6 +28,7 @@ class Settings:
     enable_auto_switch: bool = False  # when True, the IN ports belonging to all enabled sources are scanned, and when there is a signal, the source is automatically selected
     timeout_auto_switch: int = 15  # minutes to wait after signal is away, before switching to other
     enable_psalmbord: bool = False  # enable Psalmbord functionaliteit
+    enable_camera: bool = False  # enable Psalmbord functionaliteit
     enable_logging: bool = True
     version: int = 6  # version of settings, used for upgrades
 
@@ -220,6 +221,9 @@ def upgrade(store: dict):
         store['settings']['version'] = 9
         store['psalmbord']['active'] = True
 
+    if store['settings']['version'] == 9:
+        store['settings']['version'] = 10
+        store['settings']['enable_camera'] = False
     #
     # future upgrades will be placed here
     #

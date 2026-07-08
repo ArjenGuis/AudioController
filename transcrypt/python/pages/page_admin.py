@@ -50,6 +50,7 @@ class Settings(AccordionItem):
         input_auto_switch = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_timeout = E("input").attr("class", "form-control").attr("type", "number")
         input_enable_psalmbord = E("input").attr("class", "form-control").attr("type", "checkbox")
+        input_enable_camera = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_enable_logging = E("input").attr("class", "form-control").attr("type", "checkbox")
 
         width_1 = "col-sm-5"
@@ -126,6 +127,14 @@ class Settings(AccordionItem):
             E("div")
             .attr("class", "form-group row")
             .append(
+                E("label")
+                .attr("class", "{} col-form-label".format(width_1))
+                .inner_html("Camera functie inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_camera),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
                 E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Logging inschakelen"),
                 E("div").attr("class", "{}".format(width_2)).append(input_enable_logging),
             ),
@@ -143,6 +152,7 @@ class Settings(AccordionItem):
                 "enable_option_auto_switch": input_auto_switch.element.checked,
                 "timeout_auto_switch": input_timeout.element.value,
                 "enable_psalmbord": input_enable_psalmbord.element.checked,
+                "enable_camera": input_enable_camera.element.checked,
                 "enable_logging": input_enable_logging.element.checked,
             }
 
@@ -157,6 +167,7 @@ class Settings(AccordionItem):
             input_auto_switch.element.checked = settings["enable_option_auto_switch"]
             input_timeout.element.value = settings["timeout_auto_switch"]
             input_enable_psalmbord.element.checked = settings["enable_psalmbord"]
+            input_enable_camera.element.checked = settings["enable_camera"]
             input_enable_logging.element.checked = settings["enable_logging"]
 
         async def initialize():
@@ -181,6 +192,7 @@ class Settings(AccordionItem):
         input_auto_switch.element.onchange = onchange
         input_timeout.element.onchange = onchange
         input_enable_psalmbord.element.onchange = onchange
+        input_enable_camera.element.onchange = onchange
         input_enable_logging.element.onchange = onchange
 
         self.refresh = initialize

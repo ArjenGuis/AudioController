@@ -4,7 +4,7 @@ import random
 
 import utils
 from elements import Element, element, ElementWrapper, get_Element, get_elements, get_element
-from pages import page_admin, page_overview, page_psalmbord
+from pages import page_admin, page_overview, page_psalmbord, page_camera
 import dialogs
 
 E = Element
@@ -142,6 +142,10 @@ async def create_main_menu():
     if settings["enable_psalmbord"]:
         main_menu.append(
             MenuItem().set_title("Psalmbord").set_page(page_psalmbord.Page())
+        )
+    if settings["enable_camera"]:
+        main_menu.append(
+            MenuItem().set_title("Camera").set_page(page_camera.Page())
         )
     main_menu.append(MenuItem().set_title("Instellingen").set_page(page_admin.Page()))
     main_menu.append(logout_button())
