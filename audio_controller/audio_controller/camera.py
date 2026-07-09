@@ -1,5 +1,5 @@
 from typing import Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from onvif import ONVIFCamera
 import json
 import requests
@@ -35,11 +35,11 @@ class Camera:
     #
 
     # ONVIF-objecten
-    _cam: ONVIFCamera | None = field(init=False, default=None, repr=False)
-    _media: Any | None = field(init=False, default=None, repr=False)
-    _ptz: Any | None = field(init=False, default=None, repr=False)
-    _device: Any | None = field(init=False, default=None, repr=False)
-    _profile: Any | None = field(init=False, default=None, repr=False)
+    _cam: ONVIFCamera | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    _media: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    _ptz: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    _device: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    _profile: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
 
     def connect(self):
         self._cam = ONVIFCamera(
@@ -54,6 +54,23 @@ class Camera:
         self._ptz = self._cam.create_ptz_service()
         self._device = self._cam.create_devicemgmt_service()
         self._profile = self._media.GetProfiles()[0]
+
+    def to_dict(self) -> dict:
+        exclude = {
+            "presets",
+            "config_presets",
+            "_cam",
+            "_media",
+            "_ptz",
+            "_device",
+            "_profile",
+        }
+
+        return {
+            k: v
+            for k, v in asdict(self).items()
+            if k not in exclude
+        }
 
     def get_config_preset(self, token: str) -> Preset | None:
         """Zoek een preset in de configuratie."""

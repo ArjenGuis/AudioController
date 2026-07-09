@@ -453,6 +453,61 @@ class Cameras(AccordionItem):
         plist.add_column("username", "Gebruikersnaam").item_to_element(text_element.bind(None, "username"))
         plist.add_column("password", "Wachtwoord").item_to_element(text_element.bind(None, "password"))
 
+        async def delete_item(item):
+            self.cameras.remove(item)
+            self.cameras = await utils.post(
+                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        async def save_changes():
+            self.cameras = await utils.post(
+                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        plist.add_button("delete", "", "btn btn-danger btn-sm").use_element(
+            lambda item: E("i").attr("class", "fas fa-trash-alt")
+        ).onclick(delete_item)
+
+        async def change_order(up: bool, item):
+            i = self.cameras.index(item)
+            if not -1 < i < len(self.cameras):
+                return
+            j = i - 1 if up else i + 1
+            j = max(0, min(j, len(self.cameras) - 1))
+            self.cameras.remove(item)
+            self.cameras.insert(j, item)
+            self.cameras = await utils.post(
+                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        plist.add_button("up", "", "btn btn-primary btn-sm").use_element(
+            lambda item: E("i")
+            .attr("class", "fas fa-sort-up")
+            .attr("style", "font-size: 20px; vertical-align: bottom;")
+        ).onclick(change_order.bind(None, True))
+
+        plist.add_button("down", "", "btn btn-primary btn-sm").use_element(
+            lambda item: E("i")
+            .attr("class", "fas fa-sort-down")
+            .attr("style", "font-size: 20px; vertical-align: bottom;")
+        ).onclick(change_order.bind(None, False))
+
+        def add_item(evt):
+            self.cameras.append(camera("Naam", "192.168.1.1", "website.nl", 80, 2000, 8088, "username", "password"))
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        button_add = E("button").attr("class", "btn btn-primary btn-sm").inner_html("Toevoegen")
+        button_add.element.onclick = add_item
+
+        self.body.append(button_add)
+
         async def initialize():
             self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
             plist.get_server().data = self.cameras

@@ -170,6 +170,7 @@ settings = Settings()
 sources: List[Source] = []
 destinations: List[Destination] = []
 psalmbord = Psalmbord()
+cameras: List[camera.Camera] = []
 
 #
 # Save and load
@@ -236,8 +237,10 @@ def use_from_store(store: dict):
     settings.__init__(**store['settings'])
     sources.clear()
     destinations.clear()
+    cameras.clear()
     for obj in store['sources']: sources.append(Source(**obj))
     for obj in store['destinations']: destinations.append(Destination(**obj))
+    for obj in store['cameras']: cameras.append(camera.Camera(**obj))
     psalmbord.__init__(**store['psalmbord'])
 
 
@@ -263,6 +266,7 @@ def save():
             'sources': [asdict(obj) for obj in sources],
             'destinations': [asdict(obj) for obj in destinations],
             'psalmbord': asdict(psalmbord),
+            'cameras': [obj.to_dict() for obj in cameras],
         }
         f.write(pickle.dumps(store))
 
@@ -274,6 +278,7 @@ def restore():
         'sources': [asdict(obj) for obj in default_sources()],
         'destinations': [asdict(obj) for obj in default_destinations()],
         'psalmbord': asdict(default_psalmbord()),
+        'cameras': [obj.to_dict() for obj in camera.default_cameras()],
     }
     use_from_store(store)
     save()
@@ -556,10 +561,14 @@ def update_cameras(new_cameras: List[dict]):
     It may contain more, which will be ignored. """
     try:
         # convert all sources to the correct type, let it raise an Exception if its not possible
-        fields = Camera.__annotations__.copy()
-        del fields['id']  # do not copy id
+        fields = {
+            k: v
+            for k, v in camera.Camera.__annotations__.items()
+            if not k.startswith("_")
+            and k not in {"presets", "config_presets"}
+        }
         # create a temporary list, to first validate everything, and then copy
-        new_list: List[Camera] = []
+        new_list: List[camera.Camera] = []
         for i, obj in enumerate(new_cameras):
             new_obj = {}
             # copy attributes
@@ -568,7 +577,7 @@ def update_cameras(new_cameras: List[dict]):
                 value = validate_camera_attribute(attr, value_type(obj[attr]))
                 if value is not None:
                     new_obj[attr] = value
-            new_obj = Camera(**new_obj)
+            new_obj = camera.Camera(**new_obj)
             new_obj.id = i
             new_list.append(new_obj)
         cameras.clear()
