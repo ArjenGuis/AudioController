@@ -182,3 +182,173 @@ input:checked + .slider:before {
 } 
 
 /* End - Toggle checkbox */
+
+/*
+ * CAMS
+ */
+ #cams {
+	padding: 0 15px;
+  float: right;
+  margin-bottom: 30px;
+  width: calc(25% - 30px);
+ }
+ #cams ul {
+	display: flex;
+	flex-wrap: wrap;
+ }
+ #cams li {
+	float: left;
+	margin: 10px;
+	width: calc(50% - 20px);
+}
+#cams button,
+#presets button,
+#move button,
+#reboot {
+	background-color: black;
+	border-radius: 5px;
+	border: solid 1px #EEE;
+	color: #EEE;
+	width: 100%;
+}
+#cams button:hover,
+#cams button.active:hover,
+#presets button:hover,
+#move button:hover {
+	background-color: #999;
+	color: black;
+}
+#cams button.active,
+#presets button.active {
+	background-color: #EEE;
+	color: black
+}
+
+/*
+ * LIVE
+ */
+#live {
+	background-color: inherit;
+	margin: 10px 0;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+  float: left;
+  width: 75%;
+}
+
+/*
+ * PRESETS
+ */
+ #presets ul {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+ }
+ #presets ul li {
+	align-items: center;
+	display: flex;
+	margin: 10px;
+	text-align: left;
+	width: calc(50% - 20px);
+}
+#presets button {
+	font-weight: bold;
+	font-size: larger;
+	min-height: 50px;
+	height: 100%;
+	margin-right: 10px;
+	width: 50px;
+}
+#presets .label {
+	display: inline-block;
+	max-width: calc(100% - 60px);
+	word-break: break-all;
+}
+#presets .basic {
+	width: initial;
+}
+#presets .basic .label {
+	display: none;
+}
+#presets .basic button {
+	margin-right: 0;
+}
+
+#reboot {
+	width: 50%;
+}
+#reboot:hover {
+	border-color: red;
+	color: red;
+}
+
+/*
+ * MOVE 
+ */
+#move .ptzmove {
+	background-position: center center;
+	background-repeat: no-repeat;
+	background-size: 50%;
+	display: inline-block;
+	height: 50px;
+	margin: 10px;
+	vertical-align: middle;
+	width: 50px;
+}
+
+#move .tl {
+	background-image: url(/static/pictures/arrow_tl.png);
+}
+#move .tm {
+	background-image: url(/static/pictures/arrow_tm.png);
+}
+#move .tr {
+	background-image: url(/static/pictures/arrow_tr.png);
+}
+#move .ml {
+	background-image: url(/static/pictures/arrow_ml.png);
+}
+#move .mm {
+	background-image: url(/static/pictures/arrow_mm.png);
+}
+#move .mr {
+	background-image: url(/static/pictures/arrow_mr.png);
+}
+#move .bl {
+	background-image: url(/static/pictures/arrow_bl.png);
+}
+#move .bm {
+	background-image: url(/static/pictures/arrow_bm.png);
+}
+#move .br {
+	background-image: url(/static/pictures/arrow_br.png);
+}
+#move .zoomin {
+	background-image: url(/static/pictures/zoomin.png);
+}
+#move .zoomout {
+	background-image: url(/static/pictures/zoomout.png);
+}
+
+#presets,
+#move, 
+#streaming,
+#footer {
+  clear: right;
+  float: right;
+	text-align: center;
+  width: 25%;
+}
+
+#cams ul,
+#presets ul {
+  list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+#footer p {
+	margin: 20px 0;
+	padding: 5px 0;
+}
