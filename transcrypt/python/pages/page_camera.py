@@ -8,7 +8,7 @@ class Page(ElementWrapper):
     def __init__(self):
         super().__init__(element('div'))
         self.cameras: dict = None
-        cam = 0
+        self.camid = 0
 
         # load wfs.js
         script = document.createElement("script")
@@ -77,11 +77,12 @@ class Page(ElementWrapper):
             div_move.attr('class','hidden')
             div_footer.attr('class','hidden')
 
-            camid = int(evt.target.value)
-            cam = self.cameras[camid]
+            if evt:
+                self.camid = int(evt.target.value)
+            cam = self.cameras[self.camid]
 
             # load presets
-            presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':camid})
+            presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':self.camid})
 
             if presets['err'] in 'connection':
                 div_live.inner_html("Camera is niet beschikbaar.")
@@ -102,16 +103,16 @@ class Page(ElementWrapper):
                     ul = E('ul')
                     for pr in presets['presets']:
                         btn = E('button').attr('name','p').attr('value',pr['token']).inner_html(pr['token'])
-                        btn.element.onclick = lambda evt, id=camid: goto_preset(evt, camid)
-                        lbl = E('input').attr('type','text').attr('value',pr['label'])
-                        #lbl.onchange = 
+                        btn.element.onclick = goto_preset
+                        lbl = E('input').attr('type','text').attr('id',pr['token']).attr('value',pr['label'])
+                        lbl.element.onchange = setCameraPresetLabel
 
                         ul.append( E('li').append( btn,lbl ) )
 
                     div_presets.append( ul )
             
                 # load live
-                uri = await utils.post(utils.get_url("general/getCameraLive"), {'id':camid})
+                uri = await utils.post(utils.get_url("general/getCameraLive"), {'id':self.camid})
 
                 if uri['success']:
                     ws = f"ws://{cam.url_extern}:{cam.port_ws}"
@@ -134,19 +135,27 @@ class Page(ElementWrapper):
                     )
 
 
-        async def goto_preset(evt, camid):
+        async def goto_preset(evt):
             preset = int(evt.target.value)
-            result = await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':camid, 'preset':preset})
-            print(result)
+            result = await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':self.camid, 'preset':preset})
+            
             if result['success']:
                 for btn in div_presets.element.querySelectorAll("button"):
                     btn.classList.remove("active")
 
                 evt.target.classList.add("active")                
 
+        async def setCameraPresetLabel(evt):
+            token = int(evt.target.id)
+            label = str(evt.target.value)
+
+            result = await utils.post(utils.get_url("general/setCameraPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
+            
+
         async def initialize():
             self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
             btn_cameras()
+            btn_presets()
 
         self.refresh = initialize
 

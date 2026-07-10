@@ -215,7 +215,7 @@ class General(BaseHandler):
             self.write(dumps([asdict(obj) for obj in settings.destinations]))
 
         def write_cameras():
-            self.write(dumps([asdict(obj) for obj in settings.cameras]))
+            self.write(dumps([obj.to_dict() for obj in settings.cameras]))
 
         if action == "restoreSettings":
             settings.restore()
@@ -313,6 +313,29 @@ class General(BaseHandler):
                 result = {
                     "success": False,
                     "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
+        elif action == "setCameraPresetLabel":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                token = str(args['token'])
+                label = str(args['label'])
+
+                cam.set_preset_label(token, label)
+                settings.save()
+
+                result = {
+                    "success": True
+                }
+
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err),
+                    "traceback": traceback.format_exc()
                 }
             self.write(dumps(result))
             return

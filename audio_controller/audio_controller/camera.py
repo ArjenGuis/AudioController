@@ -1,5 +1,5 @@
 from typing import Any
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, is_dataclass
 from onvif import ONVIFCamera
 from urllib.parse import urlparse
 import json
@@ -60,22 +60,31 @@ class Camera:
                 f"Verbinding met '{self.name}' mislukt"
             ) from err
 
-    def to_dict(self) -> dict:
-        exclude = {
-            "presets",
-            "config_presets",
-            "_cam",
-            "_media",
-            "_ptz",
-            "_device",
-            "_profile",
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "url_intern": self.url_intern,
+            "url_extern": self.url_extern,
+            "port_http": self.port_http,
+            "port_onvif": self.port_onvif,
+            "port_ws": self.port_ws,
+            "username": self.username,
+            "password": self.password,
+            "config_presets": [
+                asdict(p) if is_dataclass(p) else p
+                for p in self.config_presets
+            ]
         }
 
-        return {
-            k: v
-            for k, v in asdict(self).items()
-            if k not in exclude
-        }
+    @classmethod
+    def from_dict(cls, data: dict):
+        data = data.copy()
+
+        data["config_presets"] = [
+            Preset(**p) for p in data.get("config_presets", [])
+        ]
+
+        return cls(**data)
 
     def get_config_preset(self, token: str) -> Preset | None:
         """Zoek een preset in de configuratie."""
@@ -105,7 +114,8 @@ class Camera:
             label = getattr(p, "Name", "") or ""
 
             # Anders de naam uit de configuratie
-            if not label:
+            # indien Name = leeg of hetzelfde als Token
+            if not label or label == token:
                 config = self.get_config_preset(token)
                 if config:
                     label = config.label
@@ -133,6 +143,24 @@ class Camera:
         request.PresetToken = token
 
         self._ptz.GotoPreset(request)
+
+    def set_preset_label(self, token: str, label: str) -> bool:
+        """Wijzig het label van een configuratie-preset."""
+
+        for preset in self.config_presets:
+            if preset.token == token:
+                preset.label = label
+                return True
+
+        # Preset bestaat nog niet: voeg hem toe
+        self.config_presets.append(
+            Preset(
+                token=token,
+                label=label
+            )
+        )
+
+        return True
 
     def get_stream_uri(self, protocol="RTSP") -> str:
         try:
@@ -351,9 +379,9 @@ def default_cameras():
             name="Kerk", 
             url_intern="192.168.1.1", 
             url_extern="west.gergemrijssen.nl", 
-            port_http=1, 
-            port_onvif=2, 
-            port_ws=3, 
+            port_http=80, 
+            port_onvif=2000, 
+            port_ws=8088, 
             username="username", 
             password="password",
             config_presets=[
@@ -379,9 +407,9 @@ def default_cameras():
             name="Zaal", 
             url_intern="192.168.1.2", 
             url_extern="west.gergemrijssen.nl", 
-            port_http=4, 
-            port_onvif=5, 
-            port_ws=6, 
+            port_http=80, 
+            port_onvif=2000, 
+            port_ws=8088, 
             username="username", 
             password="password",
             config_presets=[

@@ -240,7 +240,7 @@ def use_from_store(store: dict):
     cameras.clear()
     for obj in store['sources']: sources.append(Source(**obj))
     for obj in store['destinations']: destinations.append(Destination(**obj))
-    for obj in store['cameras']: cameras.append(camera.Camera(**obj))
+    for obj in store["cameras"]: cameras.append(camera.Camera.from_dict(obj))
     psalmbord.__init__(**store['psalmbord'])
 
 

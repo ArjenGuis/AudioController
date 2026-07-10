@@ -1,7 +1,7 @@
 /* FIXED START */
 var $bordercolor = setTimeout(borderTimer,3000); 
 function borderTimer(){
-  if( document.getElementById("live").querySelector("video") ){
+  if( document.getElementById("live") !== null & document.getElementById("live").querySelector("video") ){
     console.log(Date.now()+" borderTimer");
     document.getElementById("live").style.outline = "solid 2px red"; 
   }
