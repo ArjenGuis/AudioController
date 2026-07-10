@@ -565,7 +565,7 @@ def update_cameras(new_cameras: List[dict]):
             k: v
             for k, v in camera.Camera.__annotations__.items()
             if not k.startswith("_")
-            and k not in {"presets", "config_presets"}
+            and k != "presets"
         }
         # create a temporary list, to first validate everything, and then copy
         new_list: List[camera.Camera] = []
