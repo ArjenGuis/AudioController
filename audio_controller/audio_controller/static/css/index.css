@@ -187,7 +187,6 @@ input:checked + .slider:before {
  * CAMS
  */
  #cams {
-	padding: 0 15px;
   margin-bottom: 30px;
  }
  #cams ul {
@@ -214,11 +213,13 @@ input:checked + .slider:before {
 #presets button:hover,
 #move button:hover {
 	background-color: #999;
+  border-color: black;
 	color: black;
 }
 #cams button.active,
 #presets button.active {
 	background-color: #EEE;
+  border-color: black;
 	color: black
 }
 
@@ -248,26 +249,20 @@ input:checked + .slider:before {
 	display: flex;
 	margin: 10px;
 	text-align: left;
+	width: calc(50% - 20px);
 }
 #presets button {
 	font-weight: bold;
 	font-size: larger;
-	height: 50px;
+	min-height: 50px;
+	height: 100%;
+	margin-right: 10px;
 	width: 50px;
 }
-#presets .label {
+#presets input {
 	display: inline-block;
 	max-width: calc(100% - 60px);
 	word-break: break-all;
-}
-#presets .basic {
-	width: initial;
-}
-#presets .basic .label {
-	display: none;
-}
-#presets .basic button {
-	margin-right: 0;
 }
 
 #reboot {
@@ -333,6 +328,7 @@ input:checked + .slider:before {
 #footer {
   clear: right;
   float: right;
+	padding: 0 15px;
 	text-align: center;
   width: 34%;
 }

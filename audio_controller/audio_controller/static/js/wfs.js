@@ -1,8 +1,10 @@
 /* FIXED START */
 var $bordercolor = setTimeout(borderTimer,3000); 
-function borderTimer(){  
-  console.log(Date.now()+" borderTimer");
-  document.getElementById("live").style.outline = "solid 2px red"; 
+function borderTimer(){
+  if( document.getElementById("live").querySelector("video") ){
+    console.log(Date.now()+" borderTimer");
+    document.getElementById("live").style.outline = "solid 2px red"; 
+  }
 } 
 function borderHide(){
   document.getElementById("live").style.outline = "none"; 

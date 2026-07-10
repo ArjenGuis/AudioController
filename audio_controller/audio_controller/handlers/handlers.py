@@ -304,7 +304,7 @@ class General(BaseHandler):
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
                 preset = str(args['preset'])
-                await cam.goto_preset(preset)
+                cam.goto_preset(preset)
                 result = {
                     "success": True
                 }
