@@ -1,6 +1,7 @@
 from typing import Any
 from dataclasses import dataclass, field, asdict
 from onvif import ONVIFCamera
+from urllib.parse import urlparse
 import json
 import requests
 import socket
@@ -134,19 +135,22 @@ class Camera:
         self._ptz.GotoPreset(request)
 
     def get_stream_uri(self, protocol="RTSP") -> str:
+        try:
+            request = self._media.create_type("GetStreamUri")
 
-        request = self._media.create_type("GetStreamUri")
-
-        request.StreamSetup = {
-            "Stream": "RTP-Unicast",
-            "Transport": {
-                "Protocol": protocol
+            request.StreamSetup = {
+                "Stream": "RTP-Unicast",
+                "Transport": {
+                    "Protocol": protocol
+                }
             }
-        }
 
-        request.ProfileToken = self._profile.token
+            request.ProfileToken = self._profile.token
 
-        return self._media.GetStreamUri(request).Uri
+            return urlparse(self._media.GetStreamUri(request).Uri).path
+
+        except Exception:
+            return False
 
     def reboot(self):
         """Herstart de camera."""

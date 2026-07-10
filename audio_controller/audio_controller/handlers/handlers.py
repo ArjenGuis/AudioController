@@ -305,15 +305,35 @@ class General(BaseHandler):
                 cam = settings.cameras[args['id']]
                 preset = str(args['preset'])
                 await cam.goto_preset(preset)
-                return {
+                result = {
                     "success": True
                 }
 
             except Exception as err:
-                return {
+                result = {
                     "success": False,
                     "error": str(err)
                 }
+            self.write(dumps(result))
+            return
+
+        elif action == "getCameraLive":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                live = cam.get_stream_uri()
+                result = {
+                    "success": True,
+                    "uri": live
+                }
+
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
 
         elif action == "setCameras":
             args = self.body_to_json()

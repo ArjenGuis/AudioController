@@ -10,6 +10,12 @@ class Page(ElementWrapper):
         self.cameras: dict = None
         cam = 0
 
+        # load wfs.js
+        script = document.createElement("script")
+        script.src = "/static/js/wfs.js"
+        document.head.appendChild(script)
+
+        # create html elements
         div_cams = E('div').attr('id','cams')
         div_live = E('div').attr('id','live')
         div_presets = E('div').attr('id','presets')
@@ -69,6 +75,7 @@ class Page(ElementWrapper):
             camid = int(evt.target.value)
             cam = self.cameras[camid]
 
+            # load presets
             presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':camid})
 
             if presets['err'] in 'connection':
@@ -99,6 +106,29 @@ class Page(ElementWrapper):
                         ul.append( E('li').append( btn ) )
 
                     div_presets.append( ul )
+            
+            # load live
+            uri = await utils.post(utils.get_url("general/getCameraLive"), {'id':camid})
+
+            if uri['success']:
+                ws = f"ws://{cam.url_extern}:{cam.port_ws}"
+                video = E('video').attr('id','preview').attr('data-host',ws).attr('data-stream',uri['uri']).attr('autoplay').attr('muted').attr('playsinline').attr('width','100%')
+                video.element.addEventListener(
+                    "contextmenu",
+                    lambda evt: evt.preventDefault()
+                )
+                div_live.append(video)
+                
+                mediauri = ws+uri['uri']
+                __pragma__('js', '{}', '''
+                    var wfs = new Wfs();
+                    wfs.attachMedia(video.element, mediauri);
+                ''')
+            else:
+                div_live.append(
+                    E('p').inner_html(uri['error'])
+                )
+
 
         async def goto_preset(evt, camid):
             preset = int(evt.target.value)
