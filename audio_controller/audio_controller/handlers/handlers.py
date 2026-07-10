@@ -277,6 +277,44 @@ class General(BaseHandler):
             write_cameras()
             return
 
+        elif action == "getCameraPresets":
+            args = self.body_to_json()
+            cam = settings.cameras[args['id']]
+            result = {
+                "err": None,
+                "msg": None,
+                "presets": []
+            }
+            
+            try:
+                cam.connect()
+                result['presets'] = [asdict(p) for p in cam.load_presets()]
+            except ConnectionError as err:
+                result['err'] = 'connection'
+                result['msg'] = str(err)
+            except Exception as err:
+                result['err'] = 'fout'
+                result['msg'] = str(err)
+
+            self.write(dumps(result))
+            return
+
+        elif action == "gotoCameraPreset":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                preset = str(args['preset'])
+                await cam.goto_preset(preset)
+                return {
+                    "success": True
+                }
+
+            except Exception as err:
+                return {
+                    "success": False,
+                    "error": str(err)
+                }
+
         elif action == "setCameras":
             args = self.body_to_json()
             cameras = args["cameras"]

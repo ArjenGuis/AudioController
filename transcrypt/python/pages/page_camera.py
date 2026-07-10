@@ -13,7 +13,7 @@ class Page(ElementWrapper):
         div_cams = E('div').attr('id','cams')
         div_live = E('div').attr('id','live')
         div_presets = E('div').attr('id','presets')
-        div_move = E('div').attr('id','move').append(
+        div_move = E('div').attr('id','move').attr('class','hidden').append(
             E('div').append(
                 E('button').attr('id','leftup').attr('class','ptzmove tl'),
                 E('button').attr('id','up').attr('class','ptzmove tm'),
@@ -35,7 +35,7 @@ class Page(ElementWrapper):
                 E('button').attr('id','zoomadd').attr('class','ptzmove zoomin'),
             ),
         )
-        div_footer = E('div').attr('id','footer').append(
+        div_footer = E('div').attr('id','footer').attr('class','hidden').append(
             E('p').append( E('label').append(
                 E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1'),
                 E('span').inner_html(' Live uitzenden')
@@ -64,26 +64,45 @@ class Page(ElementWrapper):
                 )
             div_cams.append( ul )
 
-        def btn_presets(evt):
+        async def btn_presets(evt):
             div_presets.remove_childs()
-            cam = evt.target.value
-            presets = self.cameras[cam]['presets']
+            camid = int(evt.target.value)
+            cam = self.cameras[camid]
 
-            if len(presets) == 0:
-                div_presets.append( E('p').inner_html("Geen presets") )
+            presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':camid})
+
+            if presets['err'] in 'connection':
+                div_presets.append(
+                    E("div").inner_html("Camera is niet beschikbaar.")
+                )
+            elif presets['err'] == 'fout':
+                div_presets.append(
+                    E("div")
+                    .attr("style", "color:red;")
+                    .inner_html('Onverwachte fout.')
+                )
             else:
-                #todo
-                ul = E('ul')
-                for pr in presets:
-                    btn = E('button').attr('name','p').attr('value',pr['token']).inner_html(pr['token'])
-                    #btn.element.onclick = 
-                    lbl = E('input').attr('type','text').attr('value',pr['name'])
-                    #lbl.onchange = 
+                div_move.remove_attr('class')
+                div_footer.remove_attr('class')
 
-                    ul.append( E('li').append( btn, lbl ) )
+                if len(presets['presets']) == 0:
+                    div_presets.append( E('p').inner_html("Geen presets") )
+                else:
+                    #todo
+                    ul = E('ul')
+                    for pr in presets['presets']:
+                        btn = E('button').attr('name','p').attr('value',pr['token']).inner_html(pr['token'])
+                        btn.element.onclick = lambda evt, id=camid: goto_preset(evt, camid)
+                        #lbl = E('input').attr('type','text').attr('value',pr['label'])
+                        #lbl.onchange = 
 
-                div_presets.append( ul )
+                        ul.append( E('li').append( btn ) )
 
+                    div_presets.append( ul )
+
+        async def goto_preset(evt, camid):
+            preset = int(evt.target.value)
+            return await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':camid, 'preset':preset})
 
         async def initialize():
             self.cameras = await utils.post(utils.get_url("general/getCameras"), {})

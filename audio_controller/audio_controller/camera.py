@@ -42,18 +42,22 @@ class Camera:
     _profile: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
 
     def connect(self):
-        self._cam = ONVIFCamera(
-            self.url_intern,
-            self.port_onvif,
-            self.username,
-            self.password,
-            settings.ONVIF_WSDL_DIR,
-        )
+        try:
+            self._cam = ONVIFCamera(
+                self.url_intern,
+                self.port_onvif,
+                self.username,
+                self.password,
+            )
 
-        self._media = self._cam.create_media_service()
-        self._ptz = self._cam.create_ptz_service()
-        self._device = self._cam.create_devicemgmt_service()
-        self._profile = self._media.GetProfiles()[0]
+            self._media = self._cam.create_media_service()
+            self._ptz = self._cam.create_ptz_service()
+            self._device = self._cam.create_devicemgmt_service()
+            self._profile = self._media.GetProfiles()[0]
+        except Exception as err:
+            raise ConnectionError(
+                f"Verbinding met '{self.name}' mislukt"
+            ) from err
 
     def to_dict(self) -> dict:
         exclude = {
@@ -116,12 +120,16 @@ class Camera:
                 )
             )
 
-    def goto_preset(self, preset: Preset):
+        return self.presets
+
+    def goto_preset(self, preset: Preset | str):
         """Ga naar een preset."""
+
+        token = preset.token if isinstance(preset, Preset) else str(preset)
 
         request = self._ptz.create_type("GotoPreset")
         request.ProfileToken = self._profile.token
-        request.PresetToken = preset.token
+        request.PresetToken = token
 
         self._ptz.GotoPreset(request)
 
@@ -344,7 +352,7 @@ def default_cameras():
             port_ws=3, 
             username="username", 
             password="password",
-            presets=[
+            config_presets=[
                 Preset(token=0, label="Home"),
                 Preset(token=1, label="Podium"),
                 Preset(token=2, label="Kansel"),
@@ -372,7 +380,7 @@ def default_cameras():
             port_ws=6, 
             username="username", 
             password="password",
-            presets=[
+            config_presets=[
                 Preset(token=0, label="Home"),
                 Preset(token=1, label="Z3 algemeen"),
                 Preset(token=2, label="Z3 uitgezoomd"),

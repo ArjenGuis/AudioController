@@ -188,9 +188,7 @@ input:checked + .slider:before {
  */
  #cams {
 	padding: 0 15px;
-  float: right;
   margin-bottom: 30px;
-  width: calc(25% - 30px);
  }
  #cams ul {
 	display: flex;
@@ -234,7 +232,7 @@ input:checked + .slider:before {
 	top: 0;
 	z-index: 2;
   float: left;
-  width: 75%;
+  width: 66%;
 }
 
 /*
@@ -250,14 +248,11 @@ input:checked + .slider:before {
 	display: flex;
 	margin: 10px;
 	text-align: left;
-	width: calc(50% - 20px);
 }
 #presets button {
 	font-weight: bold;
 	font-size: larger;
-	min-height: 50px;
-	height: 100%;
-	margin-right: 10px;
+	height: 50px;
 	width: 50px;
 }
 #presets .label {
@@ -331,6 +326,7 @@ input:checked + .slider:before {
 	background-image: url(/static/pictures/zoomout.png);
 }
 
+#cams,
 #presets,
 #move, 
 #streaming,
@@ -338,7 +334,7 @@ input:checked + .slider:before {
   clear: right;
   float: right;
 	text-align: center;
-  width: 25%;
+  width: 34%;
 }
 
 #cams ul,
@@ -351,4 +347,9 @@ input:checked + .slider:before {
 #footer p {
 	margin: 20px 0;
 	padding: 5px 0;
+}
+
+#move.hidden,
+#footer.hidden {
+  visibility: hidden;
 }
