@@ -72,13 +72,23 @@ class Page(ElementWrapper):
             div_cams.append( ul )
 
         async def btn_presets(evt):
+            # initialize dom
             div_live.remove_childs()
             div_presets.remove_childs()
             div_move.attr('class','hidden')
             div_footer.attr('class','hidden')
 
+            for btn in div_cams.element.querySelectorAll("button"):
+                btn.classList.remove("active")
+
             if evt:
                 self.camid = int(evt.target.value)
+                evt.target.classList.add("active")            
+            else:
+                btn = div_cams.element.querySelector("button")
+                btn.classList.add("active")
+            
+            # set active cam obj
             cam = self.cameras[self.camid]
 
             # load presets

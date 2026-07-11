@@ -1,5 +1,5 @@
 """ Module which handles settings, which are configurable and thus persistent """
-import sys
+import sys, traceback
 from typing import List
 from pathlib import Path
 import pickle
@@ -556,35 +556,30 @@ def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontw
         save()
 
 def update_cameras(new_cameras: List[dict]):
-    """ Compare cameras with current cameras, and update the current.
-    Each object must contain at least all attributes required to create Camera.
-    It may contain more, which will be ignored. """
     try:
-        # convert all sources to the correct type, let it raise an Exception if its not possible
-        fields = {
-            k: v
-            for k, v in camera.Camera.__annotations__.items()
-            if not k.startswith("_")
-            and k != "presets"
-        }
-        # create a temporary list, to first validate everything, and then copy
-        new_list: List[camera.Camera] = []
+        new_list = []
+
         for i, obj in enumerate(new_cameras):
-            new_obj = {}
-            # copy attributes
-            for attr, value_type in fields.items():
-                # cast and validate value
-                value = validate_camera_attribute(attr, value_type(obj[attr]))
-                if value is not None:
-                    new_obj[attr] = value
-            new_obj = camera.Camera(**new_obj)
-            new_obj.id = i
-            new_list.append(new_obj)
-        cameras.clear()
-        for obj in new_list: cameras.append(obj)
+            cam = camera.Camera.from_dict(obj)
+            cam.id = i
+
+            # eventueel hier validatie van de eenvoudige velden
+            cam.name = validate_camera_attribute("name", cam.name)
+            cam.url_intern = validate_camera_attribute("url_intern", cam.url_intern)
+            cam.url_extern = validate_camera_attribute("url_extern", cam.url_extern)
+            cam.port_http = validate_camera_attribute("port_http", cam.port_http)
+            cam.port_onvif = validate_camera_attribute("port_onvif", cam.port_onvif)
+            cam.port_ws = validate_camera_attribute("port_ws", cam.port_ws)
+            cam.username = validate_camera_attribute("username", cam.username)
+            cam.password = validate_camera_attribute("password", cam.password)
+
+            new_list.append(cam)
+
+        cameras[:] = new_list
         save()
-    except:
-        pass
+    except Exception:
+        print(traceback.format_exc())
+        raise
 
 def test():
     return
