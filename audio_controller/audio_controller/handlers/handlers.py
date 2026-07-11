@@ -358,6 +358,38 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
+        elif action == "cameraMoveStart":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                cam.move_direction(args["direction"])
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
+        elif action == "cameraMoveStop":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                cam.move_stop()
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
         elif action == "setCameras":
             args = self.body_to_json()
             cameras = args["cameras"]

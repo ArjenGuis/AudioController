@@ -41,6 +41,21 @@ class Camera:
     _ptz: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
     _device: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
     _profile: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    _PTZ_SPEED = 0.075
+    _PTZ_DIRECTIONS = {
+        "left":      (-_PTZ_SPEED,  0,  0),
+        "right":     ( _PTZ_SPEED,  0,  0),
+        "up":        ( 0,  _PTZ_SPEED,  0),
+        "down":      ( 0, -_PTZ_SPEED,  0),
+
+        "leftup":    (-_PTZ_SPEED,  _PTZ_SPEED,  0),
+        "rightup":   ( _PTZ_SPEED,  _PTZ_SPEED,  0),
+        "leftdown":  (-_PTZ_SPEED, -_PTZ_SPEED,  0),
+        "rightdown": ( _PTZ_SPEED, -_PTZ_SPEED,  0),
+
+        "zoomadd":   ( 0,  0,  _PTZ_SPEED),
+        "zoomdec":   ( 0,  0, -_PTZ_SPEED),
+    }
 
     def connect(self):
         try:
@@ -204,7 +219,13 @@ class Camera:
         except Exception:
             return False
 
-    def stop(self):
+    def move_direction(self, direction: str):
+        """Start een beweging op basis van de richting."""
+
+        pan, tilt, zoom = self._PTZ_DIRECTIONS[direction]
+        self.move(pan, tilt, zoom)
+
+    def move_stop(self):
         """Stop pan, tilt en zoom."""
 
         if self._ptz is None:

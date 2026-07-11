@@ -57,6 +57,7 @@ class Page(ElementWrapper):
             div_footer
         )
 
+        # functies
         def btn_cameras():
             div_cams.remove_childs()
             div_presets.remove_childs()
@@ -78,6 +79,7 @@ class Page(ElementWrapper):
             div_move.attr('class','hidden')
             div_footer.attr('class','hidden')
 
+            # set cams.active button
             for btn in div_cams.element.querySelectorAll("button"):
                 btn.classList.remove("active")
 
@@ -87,6 +89,18 @@ class Page(ElementWrapper):
             else:
                 btn = div_cams.element.querySelector("button")
                 btn.classList.add("active")
+            
+            # attach move events
+            for btn in div_move.element.querySelectorAll("button"):
+                # Stop-knop
+                if btn.id == "stop":
+                    btn.onclick = moveStop
+                    btn.onpointerdown = moveStop
+                else:
+                    btn.onpointerdown = moveStart
+                    btn.onpointerup = moveStop
+                    btn.onpointerleave = moveStop
+                    btn.onpointercancel = moveStop
             
             # set active cam obj
             cam = self.cameras[self.camid]
@@ -161,6 +175,19 @@ class Page(ElementWrapper):
 
             result = await utils.post(utils.get_url("general/setCameraPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
             
+        async def moveStart(evt):
+            await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.target.id})
+
+        async def moveStop(evt):
+            await utils.post(utils.get_url("general/cameraMoveStop"),{"id": self.camid,})
+        
+        async def moveClick(evt):
+            await moveStart(evt)
+
+            # kleine vertraging zodat de camera de opdracht zeker verwerkt
+            await utils.sleep(0.075)
+
+            await moveStop()
 
         async def initialize():
             self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
