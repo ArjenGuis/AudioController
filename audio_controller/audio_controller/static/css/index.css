@@ -186,26 +186,27 @@ input:checked + .slider:before {
 /*
  * CAMS
  */
- #cams {
+#cams {
   margin-bottom: 30px;
- }
- #cams ul {
-	display: flex;
-	flex-wrap: wrap;
- }
- #cams li {
-	float: left;
+}
+#cams li {
+	display: inline-block;
 	margin: 10px;
-	width: calc(50% - 20px);
+  min-width: 200px;
+	width: 25%;
+}
+#cams li:first-child {
+  margin-left: 0;
 }
 #cams button,
 #presets button,
 #move button,
-#reboot {
+#camreboot {
 	background-color: black;
 	border-radius: 5px;
 	border: solid 1px #EEE;
 	color: #EEE;
+  cursor: pointer;
 	width: 100%;
 }
 #cams button:hover,
@@ -224,27 +225,14 @@ input:checked + .slider:before {
 }
 
 /*
- * LIVE
- */
-#live {
-	background-color: inherit;
-	margin: 10px 0;
-	position: sticky;
-	top: 0;
-	z-index: 2;
-  float: left;
-  width: 66%;
-}
-
-/*
  * PRESETS
  */
- #presets ul {
+#presets ul {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
  }
- #presets ul li {
+#presets ul li {
 	align-items: center;
 	display: flex;
 	margin: 10px;
@@ -265,10 +253,10 @@ input:checked + .slider:before {
 	word-break: break-all;
 }
 
-#reboot {
-	width: 50%;
+#camreboot {
+	min-width: 200px;
 }
-#reboot:hover {
+#camreboot:hover {
 	border-color: red;
 	color: red;
 }
@@ -322,10 +310,14 @@ input:checked + .slider:before {
 }
 
 #cams,
-#presets,
-#move, 
-#streaming,
+#live,
 #footer {
+	margin: 10px 0;
+  float: left;
+  width: 66%;
+}
+#presets,
+#move{
   clear: right;
   float: right;
 	padding: 0 15px;
@@ -340,9 +332,15 @@ input:checked + .slider:before {
 	padding: 0;
 }
 
-#footer p {
-	margin: 20px 0;
-	padding: 5px 0;
+#footer .streampublish {
+  float: left;
+	margin: 10px 0;
+	padding: 0;
+}
+#footer .reboot {
+  float: right;
+	margin: 10px 0;
+	padding: 0;
 }
 
 #move.hidden,

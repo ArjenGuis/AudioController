@@ -98,18 +98,18 @@ class Page(ElementWrapper):
                     btn.onpointercancel = moveStop
             
             # footer
-            btn_reboot = E('button').attr('id','reboot').inner_html('Herstarten')
+            btn_reboot = E('button').attr('id','camreboot').inner_html('Herstarten')
             btn_reboot.element.onclick = reboot
             inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1')
             inp_publish.element.checked = await get_stream_publish()
             inp_publish.element.onchange = set_stream_publish
 
             div_footer.append(
-                E('p').append( E('label').append(
+                E('div').attr('class','streampublish').append( E('label').append(
                     inp_publish,
                     E('span').inner_html(' Live uitzenden')
                 ) ),
-                E('p').append( btn_reboot )
+                E('div').attr('class','reboot').append( btn_reboot )
             )
             
             # set active cam obj
@@ -186,6 +186,9 @@ class Page(ElementWrapper):
             result = await utils.post(utils.get_url("general/setCameraPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
             
         async def moveStart(evt):
+            for btn in div_presets.element.querySelectorAll("button"):
+                btn.classList.remove("active")
+                
             await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.target.id})
 
         async def moveStop(evt):

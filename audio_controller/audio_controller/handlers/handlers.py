@@ -362,6 +362,7 @@ class General(BaseHandler):
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
+                cam.set_focus_mode()
                 cam.move_direction(args["direction"])
                 result = {
                     "success": True,
