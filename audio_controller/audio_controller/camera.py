@@ -307,7 +307,7 @@ class Camera:
 
         return response.json()
 
-    def get_stream_publish(self) -> bool:
+    def get_stream_publish(self, check = True) -> bool:
 
         response = self.ajaxcom({
             "GetEnv": {
@@ -316,19 +316,25 @@ class Camera:
                 }
             }
         })
-
-        return response["stValue"][0]["stMaster"]["bEnable"] == 1
+        
+        if check:
+            return response["stValue"][0]["stMaster"]["bEnable"] == 1
+        else:
+            return response["stValue"][0]
 
     def set_stream_publish(self, enable: bool):
+        settings = self.get_stream_publish(False)
+        settings["stMaster"]["bEnable"] = int(enable)
+
+        print({
+            "SetEnv": {
+                "StreamPublish": [settings]
+            }
+        })
 
         return self.ajaxcom({
             "SetEnv": {
-                "StreamPublish": {
-                    "nChannel": -1,
-                    "stMaster": {
-                        "bEnable": int(enable)
-                    }
-                }
+                "StreamPublish": [settings]
             }
         })
     

@@ -397,6 +397,37 @@ class General(BaseHandler):
             write_cameras()
             await notify_change()
 
+        elif action == "get_stream_publish":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                result = {
+                    "success": cam.get_stream_publish()
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
+        elif action == "set_stream_publish":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                cam.set_stream_publish(args['publish'])
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
         elif action == "rebootCamera":
             try:
                 args = self.body_to_json()

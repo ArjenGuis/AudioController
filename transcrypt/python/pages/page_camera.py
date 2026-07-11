@@ -70,6 +70,7 @@ class Page(ElementWrapper):
             # initialize dom
             div_live.remove_childs()
             div_presets.remove_childs()
+            div_footer.remove_childs()
             div_move.attr('class','hidden')
             div_footer.attr('class','hidden')
 
@@ -100,6 +101,9 @@ class Page(ElementWrapper):
             btn_reboot = E('button').attr('id','reboot').inner_html('Herstarten')
             btn_reboot.element.onclick = reboot
             inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1')
+            inp_publish.element.checked = await get_stream_publish()
+            inp_publish.element.onchange = set_stream_publish
+
             div_footer.append(
                 E('p').append( E('label').append(
                     inp_publish,
@@ -185,7 +189,7 @@ class Page(ElementWrapper):
             await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.target.id})
 
         async def moveStop(evt):
-            await utils.post(utils.get_url("general/cameraMoveStop"),{"id": self.camid,})
+            await utils.post(utils.get_url("general/cameraMoveStop"),{"id": self.camid})
         
         async def moveClick(evt):
             await moveStart(evt)
@@ -194,6 +198,15 @@ class Page(ElementWrapper):
             await utils.sleep(0.075)
 
             await moveStop()
+
+        async def get_stream_publish():
+            result = await utils.post(utils.get_url("general/get_stream_publish"),{"id": self.camid})
+            return result["success"]
+
+        async def set_stream_publish(evt):
+            publish = evt.target.checked
+
+            await utils.post(utils.get_url("general/set_stream_publish"),{"id": self.camid, "publish": publish})
 
         async def reboot():
             if confirm("Camera herstarten?"):
