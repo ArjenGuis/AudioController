@@ -326,12 +326,6 @@ class Camera:
         settings = self.get_stream_publish(False)
         settings["stMaster"]["bEnable"] = int(enable)
 
-        print({
-            "SetEnv": {
-                "StreamPublish": [settings]
-            }
-        })
-
         return self.ajaxcom({
             "SetEnv": {
                 "StreamPublish": [settings]
