@@ -397,6 +397,22 @@ class General(BaseHandler):
             write_cameras()
             await notify_change()
 
+        elif action == "rebootCamera":
+            try:
+                args = self.body_to_json()
+                cam = settings.cameras[args['id']]
+                cam.reboot()
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            return
+
         elif action == "getInputLevels":
             levels = controller.config.current_levels
             self.write(dumps(levels))

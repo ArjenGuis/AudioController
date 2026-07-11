@@ -41,13 +41,7 @@ class Page(ElementWrapper):
                 E('button').attr('id','zoomadd').attr('class','ptzmove zoomin'),
             ),
         )
-        div_footer = E('div').attr('id','footer').attr('class','hidden').append(
-            E('p').append( E('label').append(
-                E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1'),
-                E('span').inner_html(' Live uitzenden')
-            ) ),
-            E('p').append( E('button').attr('id','reboot').inner_html('Herstarten') )
-        )
+        div_footer = E('div').attr('id','footer').attr('class','hidden')
 
         self.append(
             div_cams,
@@ -101,6 +95,18 @@ class Page(ElementWrapper):
                     btn.onpointerup = moveStop
                     btn.onpointerleave = moveStop
                     btn.onpointercancel = moveStop
+            
+            # footer
+            btn_reboot = E('button').attr('id','reboot').inner_html('Herstarten')
+            btn_reboot.element.onclick = reboot
+            inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1')
+            div_footer.append(
+                E('p').append( E('label').append(
+                    inp_publish,
+                    E('span').inner_html(' Live uitzenden')
+                ) ),
+                E('p').append( btn_reboot )
+            )
             
             # set active cam obj
             cam = self.cameras[self.camid]
@@ -188,6 +194,10 @@ class Page(ElementWrapper):
             await utils.sleep(0.075)
 
             await moveStop()
+
+        async def reboot():
+            if confirm("Camera herstarten?"):
+                await utils.post(utils.get_url("general/rebootCamera"),{"id": self.camid})
 
         async def initialize():
             self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
