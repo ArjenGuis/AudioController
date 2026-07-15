@@ -202,10 +202,10 @@ input:checked + .slider:before {
 #presets button,
 #move button,
 #camreboot {
-	background-color: black;
+	background-color: #CCC;
 	border-radius: 5px;
-	border: solid 1px #EEE;
-	color: #EEE;
+	border: solid 1px black;
+	color: black;
   cursor: pointer;
 	width: 100%;
 }
@@ -219,9 +219,9 @@ input:checked + .slider:before {
 }
 #cams button.active,
 #presets button.active {
-	background-color: #EEE;
-  border-color: black;
-	color: black
+	background-color: green;
+  border-color: white;
+	color: white;
 }
 
 /*
@@ -269,44 +269,11 @@ input:checked + .slider:before {
 	background-repeat: no-repeat;
 	background-size: 50%;
 	display: inline-block;
+  font-size: larger;
 	height: 50px;
 	margin: 10px;
 	vertical-align: middle;
 	width: 50px;
-}
-
-#move .tl {
-	background-image: url(/static/pictures/arrow_tl.png);
-}
-#move .tm {
-	background-image: url(/static/pictures/arrow_tm.png);
-}
-#move .tr {
-	background-image: url(/static/pictures/arrow_tr.png);
-}
-#move .ml {
-	background-image: url(/static/pictures/arrow_ml.png);
-}
-#move .mm {
-	background-image: url(/static/pictures/arrow_mm.png);
-}
-#move .mr {
-	background-image: url(/static/pictures/arrow_mr.png);
-}
-#move .bl {
-	background-image: url(/static/pictures/arrow_bl.png);
-}
-#move .bm {
-	background-image: url(/static/pictures/arrow_bm.png);
-}
-#move .br {
-	background-image: url(/static/pictures/arrow_br.png);
-}
-#move .zoomin {
-	background-image: url(/static/pictures/zoomin.png);
-}
-#move .zoomout {
-	background-image: url(/static/pictures/zoomout.png);
 }
 
 #cams,

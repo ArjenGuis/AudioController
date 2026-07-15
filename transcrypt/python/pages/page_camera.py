@@ -21,24 +21,46 @@ class Page(ElementWrapper):
         div_presets = E('div').attr('id','presets')
         div_move = E('div').attr('id','move').attr('class','hidden').append(
             E('div').append(
-                E('button').attr('id','leftup').attr('class','ptzmove tl'),
-                E('button').attr('id','up').attr('class','ptzmove tm'),
-                E('button').attr('id','rightup').attr('class','ptzmove tr'),
+                E('button').attr('id','leftup').attr('class','ptzmove tl').append(
+                    E('span').attr('class','fas fa-arrow-left').attr('style','rotate: 45deg')
+                ),
+                E('button').attr('id','up').attr('class','ptzmove tm').append(
+                    E('span').attr('class','fas fa-arrow-up')
+                ),
+                E('button').attr('id','rightup').attr('class','ptzmove tr').append(
+                    E('span').attr('class','fas fa-arrow-right').attr('style','rotate: -45deg')
+                )
             ),
             E('div').append(
-                E('button').attr('id','left').attr('class','ptzmove ml'),
-                E('button').attr('id','stop').attr('class','ptzmove mm'),
-                E('button').attr('id','right').attr('class','ptzmove mr'),
+                E('button').attr('id','left').attr('class','ptzmove ml').append(
+                    E('span').attr('class','fas fa-arrow-left')
+                ),
+                E('button').attr('id','stop').attr('class','ptzmove mm').append(
+                    E('span').attr('class','fas fa-stop')
+                ),
+                E('button').attr('id','right').attr('class','ptzmove mr').append(
+                    E('span').attr('class','fas fa-arrow-right')
+                )
             ),
             E('div').append(
-                E('button').attr('id','leftdown').attr('class','ptzmove bl'),
-                E('button').attr('id','down').attr('class','ptzmove bm'),
-                E('button').attr('id','rightdown').attr('class','ptzmove br'),
+                E('button').attr('id','leftdown').attr('class','ptzmove bl').append(
+                    E('span').attr('class','fas fa-arrow-left').attr('style','rotate: -45deg')
+                ),
+                E('button').attr('id','down').attr('class','ptzmove bm').append(
+                    E('span').attr('class','fas fa-arrow-down')
+                ),
+                E('button').attr('id','rightdown').attr('class','ptzmove br').append(
+                    E('span').attr('class','fas fa-arrow-right').attr('style','rotate: 45deg')
+                )
             ),
             E('div').append(
-                E('button').attr('id','zoomdec').attr('class','ptzmove zoomout'),
+                E('button').attr('id','zoomdec').attr('class','ptzmove zoomout').append(
+                    E('span').attr('class','fas fa-search-minus')
+                ),
                 E('div').attr('class','ptzmove'),
-                E('button').attr('id','zoomadd').attr('class','ptzmove zoomin'),
+                E('button').attr('id','zoomadd').attr('class','ptzmove zoomin').append(
+                    E('span').attr('class','fas fa-search-plus')
+                ),
             ),
         )
         div_footer = E('div').attr('id','footer').attr('class','hidden')
@@ -79,8 +101,8 @@ class Page(ElementWrapper):
                 btn.classList.remove("active")
 
             if evt:
-                self.camid = int(evt.target.value)
-                evt.target.classList.add("active")            
+                self.camid = int(evt.currentTarget.value)
+                evt.currentTarget.classList.add("active")            
             else:
                 btn = div_cams.element.querySelector("button")
                 btn.classList.add("active")
@@ -170,18 +192,18 @@ class Page(ElementWrapper):
 
 
         async def goto_preset(evt):
-            preset = int(evt.target.value)
+            preset = int(evt.currentTarget.value)
             result = await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':self.camid, 'preset':preset})
             
             if result['success']:
                 for btn in div_presets.element.querySelectorAll("button"):
                     btn.classList.remove("active")
 
-                evt.target.classList.add("active")                
+                evt.currentTarget.classList.add("active")                
 
         async def setCameraPresetLabel(evt):
-            token = int(evt.target.id)
-            label = str(evt.target.value)
+            token = int(evt.currentTarget.id)
+            label = str(evt.currentTarget.value)
 
             result = await utils.post(utils.get_url("general/setCameraPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
             
@@ -189,7 +211,7 @@ class Page(ElementWrapper):
             for btn in div_presets.element.querySelectorAll("button"):
                 btn.classList.remove("active")
                 
-            await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.target.id})
+            await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.currentTarget.id})
 
         async def moveStop(evt):
             await utils.post(utils.get_url("general/cameraMoveStop"),{"id": self.camid})
@@ -207,7 +229,7 @@ class Page(ElementWrapper):
             return result["success"]
 
         async def set_stream_publish(evt):
-            publish = evt.target.checked
+            publish = evt.currentTarget.checked
 
             await utils.post(utils.get_url("general/set_stream_publish"),{"id": self.camid, "publish": publish})
 
