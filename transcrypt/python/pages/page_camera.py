@@ -141,7 +141,9 @@ class Page(ElementWrapper):
             presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':self.camid})
 
             if presets['err'] in 'connection':
-                div_live.inner_html("Camera is niet beschikbaar.")
+                div_live.append(
+                    E('div').attr('class','alert alert-danger').inner_html("Camera is niet beschikbaar.")
+                )
             elif presets['err'] == 'fout':
                 div_live.append(
                     E("div")
