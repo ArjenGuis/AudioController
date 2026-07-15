@@ -192,14 +192,14 @@ class Page(ElementWrapper):
 
 
         async def goto_preset(evt):
-            preset = int(evt.currentTarget.value)
+            preset = int(evt.target.value)
             result = await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':self.camid, 'preset':preset})
             
             if result['success']:
                 for btn in div_presets.element.querySelectorAll("button"):
                     btn.classList.remove("active")
 
-                evt.currentTarget.classList.add("active")                
+                evt.target.classList.add("active")                
 
         async def setCameraPresetLabel(evt):
             token = int(evt.currentTarget.id)
