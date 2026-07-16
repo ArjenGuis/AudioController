@@ -265,9 +265,6 @@ input:checked + .slider:before {
  * MOVE 
  */
 #move .ptzmove {
-	background-position: center center;
-	background-repeat: no-repeat;
-	background-size: 50%;
 	display: inline-block;
   font-size: larger;
 	height: 50px;

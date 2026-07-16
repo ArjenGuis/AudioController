@@ -318,8 +318,13 @@ class General(BaseHandler):
 
 class CameraApp(tornado.web.RequestHandler):
     def get(self):
+        if settings.settings.enable_psalmbord:
+            font = settings.psalmbord.fontfamily
+        else:
+            font = 'Segoe UI'
+
         if settings.settings.enable_camera:
-            self.render("camera.html", title=settings.settings.title)
+            self.render("camera.html", title=settings.settings.title, font=font)
         else:
             html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
             self.write(html)

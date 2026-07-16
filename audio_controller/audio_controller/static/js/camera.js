@@ -1,14 +1,84 @@
 $(function() {
+	var $camid;
+
+	$.ajax({
+		url: "/camera/getCameras",
+		type: "POST",
+		contentType: "application/json",
+		success: function($response){
+			$('#cams ul').empty();
+
+			$index = 0;
+			for(let $item of JSON.parse($response)){
+				$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
+				$index++;
+			}
+
+			$('#cams button').on('click', function(){
+				getPresets($(this));
+			});
+
+			// next step: load presets
+			getPresets( $('#cams li:first-child button') );
+			$('#move').show()
+		},
+		fail: function($response){ 
+			configFail($btn,$response); 
+		}
+	});
+
+
+	/*
+	* handle cams
+	*/
+	function getPresets( $btn ){
+		$camid = $btn.val();
+		$toggleLabels = $('.toggleLabels').is(':checked');
+		console.log($toggleLabels);
+
+		$('#cams button').removeClass('active');
+		
+		$btn.addClass('active');
+		
+		$.ajax({
+			url: "/camera/getPresets",
+			type: "POST",
+			contentType: "application/json",
+			data: JSON.stringify({
+				id: parseInt($camid),
+			}),
+			success: function($response){ 
+				$('#presets ul').empty();
+
+				for(let $item of JSON.parse($response).presets){
+					$('#presets ul').append('<li'+($toggleLabels?'':' class="basic"')+'><button value="'+$item.token+'">'+$item.token+'</button><span class="label"> '+$item.label+'</span></li>');
+				}
+
+				// next step: load livestream
+				//getLive();
+				//showFooter();
+			}
+		});
+	}
+
+	/*
+	 * getLive
+	 * /
+	function getLive(){
+		// fail: 
+		$('#move').hide()
+	}
+
 	/*
 	 * resize video
-	 */
+	 * /
 	var $w = $('#live img').width();
 	var $h = ($w / 16 ) * 9;
 	$('#live img').attr('height', $h ); // 9:16
 
 	/*
 	 * restore preset label setting from cookie
-	 */
+	 * /
 	let $cookie_raw = document.cookie.split("; ");
 	var $cookie = [];
 	for( $c in $cookie_raw){
@@ -45,7 +115,18 @@ $(function() {
 		$('#presets button').removeClass('active');
 		$btn.addClass('active');
 		
-		$.post('/ptzcam/api/preset', {p: $btn.val()}).fail( function($response){ configFail($btn,$response); }, "json");
+		$.ajax({
+			url: "/camera/gotoPreset",
+			type: "POST",
+			contentType: "application/json",
+			data: JSON.stringify({
+				id: parseInt($camid),
+				preset: parseInt($btn.val())
+			}),
+			fail: function($response){ 
+				configFail($btn,$response); 
+			}
+		});
 	});
 
 	/*
@@ -69,7 +150,7 @@ $(function() {
 
 	/*
 	 * toggle voice
-	 */
+	 * /
 	$('.toggleVoice').click(function(){
 		if( $(this).is(':checked') ){
 			$video.muted = false;
@@ -81,7 +162,7 @@ $(function() {
 
 	/*
 	 * set StreamPublish
-	 */
+	 * /
 	$('#streampublish').click(function( $e ){
 		var $btn = $(this);
 		if( $btn.is(":checked") ){
@@ -97,29 +178,17 @@ $(function() {
 
 	/*
 	 * reboot
-	 */
+	 * /
 	$('#reboot').click(function( $e ){
 		if( confirm("Camera herstarten?") ) {
 			var $btn = $(this);
 			$.post('/ptzcam/api/config', {task: 'reboot'}).fail( function($response){ configFail($btn,$response); }, "json");
-			setTimeout(restartWS, 35000); // restart after 35s
 		}
 	});
 	
-	/* 
-	 * function restartWS()
-	 */
-	function restartWS(){
-		console.log('restartWS!');
-		// stop websocket
-		$wfs.destroy();
-		$wfs = null;
-
-		// restart websocket
-		$wfs = new Wfs();
-		$wfs.attachMedia( $video,$host+$stream );
-	}
-
+	/*
+	 * move
+	 * /
 	var $moveID = null;
 	var $touch = 'ontouchstart' in document.documentElement; // true | false
 	$('#move button').on('click touchstart mousedown', function( $e ){ 
@@ -171,6 +240,9 @@ $(function() {
 		}
 	});
 	
+	/*
+	 * configFail
+	 */
 	function configFail($btn, $response){
 		console.log($response.responseJSON);
 		$('#debug').append("<p>"+$response.responseJSON.message+"</p>");
@@ -182,32 +254,4 @@ $(function() {
 			}
 		}
 	}
-
-	/*
-	 * set audio
-	 * /
-	$.getJSON('/ptzcam/api/config', {c: $('#cams .active').val(), a: 'GetEncodeConfig', v: 'table.Encode[0].MainFormat[0].AudioEnable'}, function($response){
-		$('.toggleAudio').attr('checked', $response );
-	});*/
-
-	/*
-	 * toggle audio
-	 * /
-	$('.toggleAudio').click(function(){
-		$c = $(this).data('cam');
-		if( $(this).is(":checked") ){
-			$a = 'true';
-		} else {
-			$a = 'false';
-		}
-		
-		$.get('/ptzcam/api/config', {c: $c, a: 'setAudioEnabled', v: $a}, function ($response){
-			if( $response[0] == "Error" ){
-				alert("Error");
-				$('.toggleAudio').parent().css('color','red');
-			} else {
-				console.log( $response );
-			}
-		});
-	});*/
 });
