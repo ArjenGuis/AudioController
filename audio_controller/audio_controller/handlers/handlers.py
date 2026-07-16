@@ -214,9 +214,6 @@ class General(BaseHandler):
         def write_destinations():
             self.write(dumps([asdict(obj) for obj in settings.destinations]))
 
-        def write_cameras():
-            self.write(dumps([obj.to_dict() for obj in settings.cameras]))
-
         if action == "restoreSettings":
             settings.restore()
             write_settings()
@@ -273,11 +270,76 @@ class General(BaseHandler):
             self.write(dumps(asdict(settings.psalmbord)))
             return
 
-        elif action == "getCameras":
+        elif action == "getInputLevels":
+            levels = controller.config.current_levels
+            self.write(dumps(levels))
+            return
+
+        elif action == "downloadLog":
+            self.write(loggers.get_logs_as_binary())
+            return
+
+        elif action == "ifconfig":
+            self.write(os.popen("ifconfig").read())
+            return
+
+        elif action == "soundcards":
+            aplay = os.popen("aplay -l").read()
+            arecord = os.popen("arecord -l").read()
+            self.write(f"{aplay}\n{arecord}")
+            return
+
+        elif action == "reboot":
+            os.system("shutdown -r now")
+            return
+
+        elif action == "shutdown":
+            os.system("shutdown now")
+            return
+
+        elif action == "getRoutes":
+            self.write(controller.get_routes())
+            return
+
+        elif action == "downloadSettings":
+            self.write(settings.get_binary())
+            return
+
+        elif action == "uploadSettings":
+            file_content = self.request.files["file"][0]["body"]
+            settings.set_binary(file_content)
+            self.write(dumps({"success": True}))
+            return
+
+        elif action == "test_gpio":
+            if gpio.is_enabled:
+                await gpio.test_async()
+            return
+
+class CameraApp(tornado.web.RequestHandler):
+    def get(self):
+        if settings.settings.enable_camera:
+            self.render("camera.html", title=settings.settings.title)
+        else:
+            html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
+            self.write(html)
+
+class Camera(BaseHandler):
+    async def post(self):
+        action = get_action(self.request.path)
+
+        if self.login_required() and not self.logged_in():
+            self.write(dumps({"success": False}))
+            return
+
+        def write_cameras():
+            self.write(dumps([obj.to_dict() for obj in settings.cameras]))
+
+        if action == "getCameras":
             write_cameras()
             return
 
-        elif action == "getCameraPresets":
+        elif action == "getPresets":
             args = self.body_to_json()
             cam = settings.cameras[args['id']]
             result = {
@@ -299,7 +361,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "gotoCameraPreset":
+        elif action == "gotoPreset":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -317,7 +379,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "setCameraPresetLabel":
+        elif action == "setPresetLabel":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -340,7 +402,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "getCameraLive":
+        elif action == "getLive":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -358,7 +420,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "cameraMoveStart":
+        elif action == "moveStart":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -375,7 +437,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "cameraMoveStop":
+        elif action == "moveStop":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -429,7 +491,7 @@ class General(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "rebootCamera":
+        elif action == "reboot":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -443,52 +505,6 @@ class General(BaseHandler):
                     "error": str(err)
                 }
             self.write(dumps(result))
-            return
-
-        elif action == "getInputLevels":
-            levels = controller.config.current_levels
-            self.write(dumps(levels))
-            return
-
-        elif action == "downloadLog":
-            self.write(loggers.get_logs_as_binary())
-            return
-
-        elif action == "ifconfig":
-            self.write(os.popen("ifconfig").read())
-            return
-
-        elif action == "soundcards":
-            aplay = os.popen("aplay -l").read()
-            arecord = os.popen("arecord -l").read()
-            self.write(f"{aplay}\n{arecord}")
-            return
-
-        elif action == "reboot":
-            os.system("shutdown -r now")
-            return
-
-        elif action == "shutdown":
-            os.system("shutdown now")
-            return
-
-        elif action == "getRoutes":
-            self.write(controller.get_routes())
-            return
-
-        elif action == "downloadSettings":
-            self.write(settings.get_binary())
-            return
-
-        elif action == "uploadSettings":
-            file_content = self.request.files["file"][0]["body"]
-            settings.set_binary(file_content)
-            self.write(dumps({"success": True}))
-            return
-
-        elif action == "test_gpio":
-            if gpio.is_enabled:
-                await gpio.test_async()
             return
 
 

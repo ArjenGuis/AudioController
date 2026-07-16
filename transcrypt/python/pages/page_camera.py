@@ -138,7 +138,7 @@ class Page(ElementWrapper):
             cam = self.cameras[self.camid]
 
             # load presets
-            presets = await utils.post(utils.get_url("general/getCameraPresets"), {'id':self.camid})
+            presets = await utils.post(utils.get_url("camera/getPresets"), {'id':self.camid})
 
             if presets['err'] in 'connection':
                 div_live.append(
@@ -163,14 +163,14 @@ class Page(ElementWrapper):
                         btn = E('button').attr('name','p').attr('value',pr['token']).inner_html(pr['token'])
                         btn.element.onclick = goto_preset
                         lbl = E('input').attr('type','text').attr('id',pr['token']).attr('value',pr['label'])
-                        lbl.element.onchange = setCameraPresetLabel
+                        lbl.element.onchange = setPresetLabel
 
                         ul.append( E('li').append( btn,lbl ) )
 
                     div_presets.append( ul )
             
                 # load live
-                uri = await utils.post(utils.get_url("general/getCameraLive"), {'id':self.camid})
+                uri = await utils.post(utils.get_url("camera/getLive"), {'id':self.camid})
 
                 if uri['success']:
                     ws = f"ws://{cam.url_extern}:{cam.port_ws}"
@@ -195,7 +195,7 @@ class Page(ElementWrapper):
 
         async def goto_preset(evt):
             preset = int(evt.target.value)
-            result = await utils.post(utils.get_url("general/gotoCameraPreset"), {'id':self.camid, 'preset':preset})
+            result = await utils.post(utils.get_url("camera/gotoPreset"), {'id':self.camid, 'preset':preset})
             
             if result['success']:
                 for btn in div_presets.element.querySelectorAll("button"):
@@ -203,20 +203,20 @@ class Page(ElementWrapper):
 
                 evt.target.classList.add("active")                
 
-        async def setCameraPresetLabel(evt):
+        async def setPresetLabel(evt):
             token = int(evt.currentTarget.id)
             label = str(evt.currentTarget.value)
 
-            result = await utils.post(utils.get_url("general/setCameraPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
+            result = await utils.post(utils.get_url("camera/setPresetLabel"), {'id':self.camid, 'token':token, 'label':label})
             
         async def moveStart(evt):
             for btn in div_presets.element.querySelectorAll("button"):
                 btn.classList.remove("active")
                 
-            await utils.post(utils.get_url("general/cameraMoveStart"),{"id": self.camid,"direction": evt.currentTarget.id})
+            await utils.post(utils.get_url("camera/moveStart"),{"id": self.camid,"direction": evt.currentTarget.id})
 
         async def moveStop(evt):
-            await utils.post(utils.get_url("general/cameraMoveStop"),{"id": self.camid})
+            await utils.post(utils.get_url("camera/moveStop"),{"id": self.camid})
         
         async def moveClick(evt):
             await moveStart(evt)
@@ -227,20 +227,20 @@ class Page(ElementWrapper):
             await moveStop()
 
         async def get_stream_publish():
-            result = await utils.post(utils.get_url("general/get_stream_publish"),{"id": self.camid})
+            result = await utils.post(utils.get_url("camera/get_stream_publish"),{"id": self.camid})
             return result["success"]
 
         async def set_stream_publish(evt):
             publish = evt.currentTarget.checked
 
-            await utils.post(utils.get_url("general/set_stream_publish"),{"id": self.camid, "publish": publish})
+            await utils.post(utils.get_url("camera/set_stream_publish"),{"id": self.camid, "publish": publish})
 
         async def reboot():
             if confirm("Camera herstarten?"):
-                await utils.post(utils.get_url("general/rebootCamera"),{"id": self.camid})
+                await utils.post(utils.get_url("camera/reboot"),{"id": self.camid})
 
         async def initialize():
-            self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
+            self.cameras = await utils.post(utils.get_url("camera/getCameras"), {})
             btn_cameras()
             btn_presets()
 

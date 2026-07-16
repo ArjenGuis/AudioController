@@ -45,6 +45,8 @@ def make_app():
         ("/login/.*", handlers.Login),
         ("/general/.*", handlers.General),
         ("/psalmbord", handlers.Psalmbord),
+        ("/camera", handlers.CameraApp),
+        ("/camera/.*", handlers.Camera),
         ("/(favicon.ico)", handlers.StaticFileHandler, {"path": str(static_dir)}),
         ("/static/(.*)", handlers.StaticFileHandler, {"path": str(static_dir)}),
         ("/websocket/", socketio.get_tornado_handler(sio)),
