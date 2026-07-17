@@ -99,7 +99,7 @@ a:hover {
 #cams button,
 #presets button,
 #move button,
-#reboot {
+#camreboot {
 	background-color: black;
 	border-radius: 5px;
 	border: solid 1px #EEE;
@@ -128,6 +128,9 @@ a:hover {
 	position: sticky;
 	top: 0;
 	z-index: 2;
+}
+#live .alert {
+	display: none;
 }
 
 /*
@@ -168,10 +171,10 @@ a:hover {
 	margin-right: 0;
 }
 
-#reboot {
+#camreboot {
 	width: 50%;
 }
-#reboot:hover {
+#camreboot:hover {
 	border-color: red;
 	color: red;
 }

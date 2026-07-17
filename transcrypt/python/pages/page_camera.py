@@ -123,8 +123,8 @@ class Page(ElementWrapper):
             btn_reboot = E('button').attr('id','camreboot').inner_html('Herstarten')
             btn_reboot.element.onclick = reboot
             inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1')
-            inp_publish.element.checked = await get_stream_publish()
-            inp_publish.element.onchange = set_stream_publish
+            inp_publish.element.checked = await getStreamPublish()
+            inp_publish.element.onchange = setStreamPublish
 
             div_footer.append(
                 E('div').attr('class','streampublish').append( E('label').append(
@@ -174,7 +174,7 @@ class Page(ElementWrapper):
 
                 if uri['success']:
                     ws = f"ws://{cam.url_extern}:{cam.port_ws}"
-                    video = E('video').attr('id','preview').attr('data-host',ws).attr('data-stream',uri['uri']).attr('autoplay').attr('muted').attr('playsinline').attr('width','100%')
+                    video = E('video').attr('id','preview').attr('data-host',ws).attr('data-stream',uri['uri']).attr('autoplay','autoplay').attr('muted','muted').attr('playsinline','playsinline').attr('width','100%')
                     video.element.addEventListener(
                         "contextmenu",
                         lambda evt: evt.preventDefault()
@@ -226,14 +226,14 @@ class Page(ElementWrapper):
 
             await moveStop()
 
-        async def get_stream_publish():
-            result = await utils.post(utils.get_url("camera/get_stream_publish"),{"id": self.camid})
+        async def getStreamPublish():
+            result = await utils.post(utils.get_url("camera/getStreamPublish"),{"id": self.camid})
             return result["success"]
 
-        async def set_stream_publish(evt):
+        async def setStreamPublish(evt):
             publish = evt.currentTarget.checked
 
-            await utils.post(utils.get_url("camera/set_stream_publish"),{"id": self.camid, "publish": publish})
+            await utils.post(utils.get_url("camera/setStreamPublish"),{"id": self.camid, "publish": publish})
 
         async def reboot():
             if confirm("Camera herstarten?"):

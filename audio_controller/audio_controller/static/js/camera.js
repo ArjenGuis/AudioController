@@ -1,15 +1,18 @@
 $(function() {
-	var $camid;
+	var $camid = null;
+	var $cameras = null;
 
 	$.ajax({
 		url: "/camera/getCameras",
 		type: "POST",
 		contentType: "application/json",
+		dataType: 'json',
 		success: function($response){
 			$('#cams ul').empty();
+			$cameras = $response;
 
 			$index = 0;
-			for(let $item of JSON.parse($response)){
+			for(let $item of $cameras){
 				$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
 				$index++;
 			}
@@ -34,7 +37,6 @@ $(function() {
 	function getPresets( $btn ){
 		$camid = $btn.val();
 		$toggleLabels = $('.toggleLabels').is(':checked');
-		console.log($toggleLabels);
 
 		$('#cams button').removeClass('active');
 		
@@ -44,41 +46,77 @@ $(function() {
 			url: "/camera/getPresets",
 			type: "POST",
 			contentType: "application/json",
+			dataType: 'json',
 			data: JSON.stringify({
 				id: parseInt($camid),
 			}),
 			success: function($response){ 
+				// clear preset buttons
 				$('#presets ul').empty();
 
-				for(let $item of JSON.parse($response).presets){
+				// add preset buttons to dom
+				for(let $item of $response.presets){
 					$('#presets ul').append('<li'+($toggleLabels?'':' class="basic"')+'><button value="'+$item.token+'">'+$item.token+'</button><span class="label"> '+$item.label+'</span></li>');
 				}
 
-				// next step: load livestream
-				//getLive();
-				//showFooter();
+				// add preset click event
+				$('#presets button').click(function( $e ){
+					gotoPreset( $(this) );
+				});
+
+				// load livestream
+				getLive();
+
+				// get streampublish parameter
+				getStreamPublish();
+
+				// set Instellingen link
+				$('#footer .caminstellingen').attr('href','http://'+$cameras[$camid].url_extern)
 			}
 		});
 	}
 
 	/*
 	 * getLive
-	 * /
+	 */
 	function getLive(){
-		// fail: 
-		$('#move').hide()
+		$.ajax({
+			url: "/camera/getLive",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				id: parseInt($camid),
+			}),
+			success: function($response){ 
+				if( $response.success ){ 
+					if( $response.uri !== false ){
+						var $video = document.getElementById("preview"); // niet als jQuery object laden!
+						if( $video !== null ){
+							$video.addEventListener('contextmenu', function ($e) { 
+								$e.preventDefault(); 
+							});
+
+							var $wfs = new Wfs();
+							$wfs.attachMedia( $video, "ws://"+$cameras[$camid].url_extern+":"+$cameras[$camid].port_ws+$response.uri );
+						}
+						$('#live video, #move, #presets, #footer').show();
+						$('#live .alert').hide();
+					} else {
+						$('#live video, #move, #presets, #footer').hide();
+						$('#live .alert').show();
+					}
+				} else {
+					console.error('getLive fail: '+$response.error);
+					$('#move').hide()
+				}
+			}
+		});
 	}
 
 	/*
-	 * resize video
-	 * /
-	var $w = $('#live img').width();
-	var $h = ($w / 16 ) * 9;
-	$('#live img').attr('height', $h ); // 9:16
-
-	/*
 	 * restore preset label setting from cookie
-	 * /
+	 */
 	let $cookie_raw = document.cookie.split("; ");
 	var $cookie = [];
 	for( $c in $cookie_raw){
@@ -109,9 +147,7 @@ $(function() {
 	/*
 	 * handle preset
 	 */
-	$('#presets button').click(function( $e ){
-		var $btn = $(this);
-
+	function gotoPreset( $btn ){
 		$('#presets button').removeClass('active');
 		$btn.addClass('active');
 		
@@ -127,43 +163,29 @@ $(function() {
 				configFail($btn,$response); 
 			}
 		});
-	});
-
-	/*
-	 * Websocket
-	 */
-	var $video = document.getElementById("preview"); // niet als jQuery object laden!
-	if( $video !== null ){
-		$video.addEventListener('contextmenu', function ($e) { 
-			$e.preventDefault(); 
-		});
-
-		var $host = $video.getAttribute('data-host');
-		if( $host != undefined ){
-			var $stream = $video.getAttribute('data-stream');
-			var $wfs = new Wfs();
-			$wfs.attachMedia( $video, $host+$stream );
-		} else {
-			console.log( 'host undefined' );
-		}
 	}
 
 	/*
-	 * toggle voice
-	 * /
-	$('.toggleVoice').click(function(){
-		if( $(this).is(':checked') ){
-			$video.muted = false;
-			$('#preview').removeAttr("muted");
-		} else {
-			$video.muted = true;
-		}
-	});
-
-	/*
-	 * set StreamPublish
-	 * /
-	$('#streampublish').click(function( $e ){
+	 * StreamPublish
+	 */
+	function getStreamPublish(){
+		$.ajax({
+			url: "/camera/getStreamPublish",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				id: parseInt($camid),
+			}),
+			success: function($response){
+				$('#footer .streampublish input').attr('checked', $response.success)
+			},
+			fail: function($response){ 
+				configFail($btn,$response); 
+			}
+		});
+	}
+	$('#footer .streampublish input').click(function( $e ){
 		var $btn = $(this);
 		if( $btn.is(":checked") ){
 			$val = 1;
@@ -173,16 +195,52 @@ $(function() {
 			return false;
 		}
 
-		return $.post('/ptzcam/api/config', {task: 'publish', p: $val}).fail( function($response){ configFail($btn,$response); }, "json");
+		$.ajax({
+			url: "/camera/setStreamPublish",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				id: parseInt($camid),
+				publish: $val,
+			}),
+			fail: function($response){ 
+				configFail($btn,$response); 
+			}
+		});
+	});
+
+	/*
+	 * toggle voice
+	 */
+	$('.toggleVoice').click(function(){
+		if( $(this).is(':checked') ){
+			$video = document.getElementById("preview");
+			$video.muted = false;
+			$('#preview').removeAttr("muted");
+		} else {
+			$video.muted = true;
+		}
 	});
 
 	/*
 	 * reboot
-	 * /
-	$('#reboot').click(function( $e ){
+	 */
+	$('#camreboot').click(function( $e ){
 		if( confirm("Camera herstarten?") ) {
 			var $btn = $(this);
-			$.post('/ptzcam/api/config', {task: 'reboot'}).fail( function($response){ configFail($btn,$response); }, "json");
+			$.ajax({
+				url: "/camera/reboot",
+				type: "POST",
+				contentType: "application/json",
+				dataType: 'json',
+				data: JSON.stringify({
+					id: parseInt($camid),
+				}),
+				fail: function($response){ 
+					configFail($btn,$response); 
+				}
+			});
 		}
 	});
 	

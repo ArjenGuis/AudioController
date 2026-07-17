@@ -23,7 +23,10 @@
     
     <div id="cams"><ul></ul></div>
 
-    <div id="live"></div>
+    <div id="live">
+        <div class="alert alert-danger">Camera is niet beschikbaar.</div>
+        <video id="preview" autoplay muted playsinline width="100%"></video>
+    </div>
 
     <div id="presets">
         <ul></ul>
@@ -56,6 +59,8 @@
     <div id="footer">
         <div class="streampublish"><label><input type="checkbox" name="streampublish" value="1"><span> Live uitzenden</span></label></div>
         <div class="reboot"><button id="camreboot">Herstarten</button></div>
+        <div><label><input type="checkbox" name="voice" value="1" class="toggleVoice" /> Meeluisteren in deze app</label></div>
+        <div><a href="#" class="caminstellingen" target="_blank">Camera instellingen &raquo;</a></div>
     </div>
 
     <script src="/static/js/wfs.js"></script>

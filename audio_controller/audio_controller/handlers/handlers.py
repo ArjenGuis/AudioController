@@ -465,7 +465,7 @@ class Camera(BaseHandler):
             write_cameras()
             await notify_change()
 
-        elif action == "get_stream_publish":
+        elif action == "getStreamPublish":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
@@ -480,7 +480,7 @@ class Camera(BaseHandler):
             self.write(dumps(result))
             return
 
-        elif action == "set_stream_publish":
+        elif action == "setStreamPublish":
             try:
                 args = self.body_to_json()
                 cam = settings.cameras[args['id']]
