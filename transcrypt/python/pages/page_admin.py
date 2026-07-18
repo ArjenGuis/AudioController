@@ -531,7 +531,10 @@ class Cameras(AccordionItem):
         self.body.append(button_add)
 
         async def initialize():
-            self.cameras = await utils.post(utils.get_url("general/getCameras"), {})
+            cameras = await utils.post(utils.get_url("camera/getCameras"), {})
+            if cameras.success:
+                self.cameras = cameras.cameras
+
             plist.get_server().data = self.cameras
             plist.refresh()
 
