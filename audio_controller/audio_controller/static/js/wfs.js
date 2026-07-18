@@ -1,14 +1,26 @@
 /* FIXED START */
 var $bordercolor = setTimeout(borderTimer,3000); 
+if( checkVideo() ){
+  var $bordercolor = setTimeout(borderTimer,3000); 
+}
+
 function borderTimer(){
-  if( document.getElementById("live") !== null && document.getElementById("live").querySelector("video").style.display != "none" ){
-    console.log(Date.now()+" borderTimer");
+  if( checkVideo() ){
     document.getElementById("live").style.outline = "solid 2px red"; 
+  } else {
+    borderHide();
   }
 } 
 function borderHide(){
-  document.getElementById("live").style.outline = "none"; 
+  if( checkVideo() ){
+    document.getElementById("live").style.outline = "none"; 
+  }
   clearTimeout($bordercolor);
+}
+function checkVideo(){
+  return ( document.getElementById("live") != null && 
+      document.getElementById("live").querySelector("video") != null && 
+      document.getElementById("live").querySelector("video").style.display != "none" )
 }
 /* FIXED END */
 
