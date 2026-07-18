@@ -478,14 +478,14 @@ class Cameras(AccordionItem):
         async def delete_item(item):
             self.cameras.remove(item)
             self.cameras = await utils.post(
-                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
             )
             plist.get_server().data = self.cameras
             plist.refresh()
 
         async def save_changes():
             self.cameras = await utils.post(
-                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
             )
             plist.get_server().data = self.cameras
             plist.refresh()
@@ -503,7 +503,7 @@ class Cameras(AccordionItem):
             self.cameras.remove(item)
             self.cameras.insert(j, item)
             self.cameras = await utils.post(
-                utils.get_url("general/setCameras"), {"cameras": self.cameras}
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
             )
             plist.get_server().data = self.cameras
             plist.refresh()

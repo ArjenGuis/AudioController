@@ -340,11 +340,14 @@ class Camera(BaseHandler):
             }))
             return
 
-        def write_cameras():
-            self.write(dumps({
-                "success": True,
-                "cameras": [obj.to_dict() for obj in settings.cameras]
-            }))
+        def write_cameras(setCameras = False):
+            if setCameras:
+                self.write(dumps([obj.to_dict() for obj in settings.cameras]))
+            else:
+                self.write(dumps({
+                    "success": True,
+                    "cameras": [obj.to_dict() for obj in settings.cameras]
+                }))
 
         if action == "getCameras":
             write_cameras()
@@ -468,7 +471,7 @@ class Camera(BaseHandler):
             args = self.body_to_json()
             cameras = args["cameras"]
             settings.update_cameras(cameras)
-            write_cameras()
+            write_cameras(True)
             await notify_change()
 
         elif action == "getStreamPublish":
