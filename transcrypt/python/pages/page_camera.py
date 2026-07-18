@@ -17,52 +17,60 @@ class Page(ElementWrapper):
 
         # create html elements
         div_cams = E('div').attr('id','cams')
-        div_live = E('div').attr('id','live').inner_html('Kies een camera.')
+        
+        div_live_video = E('div').attr('class','video')
+        div_live_err = E('div').attr('class','errors')
+        div_live_hor = E('div').attr('class','raster hor')
+        div_live_ver = E('div').attr('class','raster ver')
+        div_live = E('div').attr('id','live').append(div_live_err,div_live_video,div_live_hor,div_live_ver)
+
         div_presets = E('div').attr('id','presets')
+
         div_move = E('div').attr('id','move').attr('class','hidden').append(
             E('div').append(
-                E('button').attr('id','leftup').attr('class','ptzmove tl').append(
+                E('button').attr('id','leftup').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-left').attr('style','rotate: 45deg')
                 ),
-                E('button').attr('id','up').attr('class','ptzmove tm').append(
+                E('button').attr('id','up').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-up')
                 ),
-                E('button').attr('id','rightup').attr('class','ptzmove tr').append(
+                E('button').attr('id','rightup').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-right').attr('style','rotate: -45deg')
                 )
             ),
             E('div').append(
-                E('button').attr('id','left').attr('class','ptzmove ml').append(
+                E('button').attr('id','left').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-left')
                 ),
-                E('button').attr('id','stop').attr('class','ptzmove mm').append(
+                E('button').attr('id','stop').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-stop')
                 ),
-                E('button').attr('id','right').attr('class','ptzmove mr').append(
+                E('button').attr('id','right').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-right')
                 )
             ),
             E('div').append(
-                E('button').attr('id','leftdown').attr('class','ptzmove bl').append(
+                E('button').attr('id','leftdown').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-left').attr('style','rotate: -45deg')
                 ),
-                E('button').attr('id','down').attr('class','ptzmove bm').append(
+                E('button').attr('id','down').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-down')
                 ),
-                E('button').attr('id','rightdown').attr('class','ptzmove br').append(
+                E('button').attr('id','rightdown').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-arrow-right').attr('style','rotate: 45deg')
                 )
             ),
             E('div').append(
-                E('button').attr('id','zoomdec').attr('class','ptzmove zoomout').append(
+                E('button').attr('id','zoomdec').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-search-minus')
                 ),
                 E('div').attr('class','ptzmove'),
-                E('button').attr('id','zoomadd').attr('class','ptzmove zoomin').append(
+                E('button').attr('id','zoomadd').attr('class','ptzmove btn btn-primary').append(
                     E('span').attr('class','fas fa-search-plus')
                 ),
             ),
         )
+
         div_footer = E('div').attr('id','footer').attr('class','hidden')
 
         self.append(
@@ -80,7 +88,7 @@ class Page(ElementWrapper):
 
             ul = E('ul')
             for index, cam in enumerate(self.cameras):
-                btn = E('button').inner_html(cam['name']).attr('value',index)
+                btn = E('button').inner_html(cam['name']).attr('value',index).attr('class','btn btn-primary')
                 btn.element.onclick = btn_presets
 
                 ul.append(
@@ -90,7 +98,8 @@ class Page(ElementWrapper):
 
         async def btn_presets(evt):
             # initialize dom
-            div_live.remove_childs()
+            div_live_err.remove_childs()
+            div_live_video.remove_childs()
             div_presets.remove_childs()
             div_footer.remove_childs()
             div_move.attr('class','hidden')
@@ -120,16 +129,22 @@ class Page(ElementWrapper):
                     btn.onpointercancel = moveStop
             
             # footer
-            btn_reboot = E('button').attr('id','camreboot').inner_html('Herstarten')
+            btn_reboot = E('button').attr('id','camreboot').attr('class','btn btn-danger').inner_html('Herstarten')
             btn_reboot.element.onclick = reboot
-            inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1')
+            inp_publish = E('input').attr('type','checkbox').attr('name','streampublish').attr('value','1').attr('class','form-check-input')
             inp_publish.element.checked = await getStreamPublish()
             inp_publish.element.onchange = setStreamPublish
+            inp_border = E('input').attr('type','checkbox').attr('class','form-check-input')
+            inp_border.element.onchange = setBorder
 
             div_footer.append(
-                E('div').attr('class','streampublish').append( E('label').append(
+                E('div').attr('class','streampublish form-check').append( E('label').attr('class','form-check-label').append(
                     inp_publish,
                     E('span').inner_html(' Live uitzenden')
+                ) ),
+                E('div').attr('class','raster form-check').append( E('label').attr('class','form-check-label').append(
+                    inp_border,
+                    E('span').inner_html(' Raster tonen')
                 ) ),
                 E('div').attr('class','reboot').append( btn_reboot )
             )
@@ -141,11 +156,11 @@ class Page(ElementWrapper):
             presets = await utils.post(utils.get_url("camera/getPresets"), {'id':self.camid})
 
             if presets['err'] in 'connection':
-                div_live.append(
+                div_live_err.append(
                     E('div').attr('class','alert alert-danger').inner_html("Camera is niet beschikbaar.")
                 )
             elif presets['err'] == 'fout':
-                div_live.append(
+                div_live_err.append(
                     E("div")
                     .attr("style", "color:red;")
                     .inner_html('Onverwachte fout.')
@@ -157,12 +172,11 @@ class Page(ElementWrapper):
                 if len(presets['presets']) == 0:
                     div_presets.append( E('p').inner_html("Geen presets") )
                 else:
-                    #todo
                     ul = E('ul')
                     for pr in presets['presets']:
-                        btn = E('button').attr('name','p').attr('value',pr['token']).inner_html(pr['token'])
+                        btn = E('button').attr('name','p').attr('value',pr['token']).attr('class','btn btn-primary').inner_html(pr['token'])
                         btn.element.onclick = goto_preset
-                        lbl = E('input').attr('type','text').attr('id',pr['token']).attr('value',pr['label'])
+                        lbl = E('input').attr('type','text').attr('id',pr['token']).attr('value',pr['label']).attr('class','form-control')
                         lbl.element.onchange = setPresetLabel
 
                         ul.append( E('li').append( btn,lbl ) )
@@ -179,8 +193,8 @@ class Page(ElementWrapper):
                         "contextmenu",
                         lambda evt: evt.preventDefault()
                     )
-                    div_live.remove_childs()
-                    div_live.append(video)
+                    div_live_video.remove_childs()
+                    div_live_video.append(video)
                     
                     mediauri = ws+uri['uri']
                     __pragma__('js', '{}', '''
@@ -188,7 +202,7 @@ class Page(ElementWrapper):
                         wfs.attachMedia(video.element, mediauri);
                     ''')
                 else:
-                    div_live.append(
+                    div_live_err.append(
                         E('p').inner_html(uri['error'])
                     )
 
@@ -240,9 +254,20 @@ class Page(ElementWrapper):
                 await utils.post(utils.get_url("camera/reboot"),{"id": self.camid})
 
         async def initialize():
-            self.cameras = await utils.post(utils.get_url("camera/getCameras"), {})
-            btn_cameras()
-            btn_presets()
+            cameras = await utils.post(utils.get_url("camera/getCameras"), {})
+            if cameras.success:
+                self.cameras = cameras.cameras
+
+                btn_cameras()
+                btn_presets()
+
+        def setBorder(evt):
+            if evt.currentTarget.checked:
+                div_live_hor.attr('style','display:block')
+                div_live_ver.attr('style','display:block')
+            else:
+                div_live_hor.attr('style','display:none')
+                div_live_ver.attr('style','display:none')
 
         self.refresh = initialize
 

@@ -198,30 +198,12 @@ input:checked + .slider:before {
 #cams li:first-child {
   margin-left: 0;
 }
-#cams button,
-#presets button,
-#move button,
-#camreboot {
-	background-color: #CCC;
-	border-radius: 5px;
-	border: solid 1px black;
-	color: black;
-  cursor: pointer;
-	width: 100%;
-}
-#cams button:hover,
-#cams button.active:hover,
-#presets button:hover,
-#move button:hover {
-	background-color: #999;
-  border-color: black;
-	color: black;
+#cams button{ 
+  width: 100%;
 }
 #cams button.active,
 #presets button.active {
-	background-color: green;
-  border-color: white;
-	color: white;
+	background-color: var(--green);
 }
 
 /*
@@ -253,12 +235,9 @@ input:checked + .slider:before {
 	word-break: break-all;
 }
 
+#cams button,
 #camreboot {
 	min-width: 200px;
-}
-#camreboot:hover {
-	border-color: red;
-	color: red;
 }
 
 /*
@@ -280,6 +259,30 @@ input:checked + .slider:before {
   float: left;
   width: 66%;
 }
+#live {
+  position: relative;
+}
+#live .video {
+  font-size: 0;
+}
+#live .raster.hor{
+  border: solid 1px var(--yellow); 
+  display: none;
+  position: absolute; 
+  top: 33.33333%; 
+  left: 0; 
+  height: 33.33333%; 
+  width: 100%
+}
+#live .raster.ver{
+  border: solid 1px var(--yellow); 
+  display: none;
+  position: absolute; 
+  top: 0; 
+  left: 33.33333%; 
+  height: 100%; 
+  width: 33.33333%
+}
 #presets,
 #move{
   clear: right;
@@ -296,22 +299,20 @@ input:checked + .slider:before {
 	padding: 0;
 }
 
-#footer .streampublish {
-  float: left;
-	margin: 10px 0;
-	padding: 0;
+#footer {
+  display: flex;
+  justify-content: space-between;
 }
-#footer .streampublish input {
+#footer .streampublish,
+#footer .raster {
+	align-self: center;
+}
+#footer .form-check input {
   height: 20px;
-  margin-right: 10px;
-  position: relative;
-  top: 2px;
   width: 20px;
 }
-#footer .reboot {
-  float: right;
-	margin: 10px 0;
-	padding: 0;
+#footer .form-check span {
+  margin-left: 10px;
 }
 
 #move.hidden,

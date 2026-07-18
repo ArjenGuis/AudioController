@@ -129,6 +129,9 @@ a:hover {
 	top: 0;
 	z-index: 2;
 }
+#live .video {
+	font-size: 0;
+}
 #live .alert {
 	display: none;
 }
