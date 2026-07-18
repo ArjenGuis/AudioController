@@ -185,7 +185,8 @@ a:hover {
 #move {
 	display: none;
 }
-#move .ptzmove {
+#move .ptzmove,
+#move .ptzstop {
 	display: inline-block;
 	font-size: larger;
 	height: 50px;

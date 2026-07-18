@@ -334,11 +334,17 @@ class Camera(BaseHandler):
         action = get_action(self.request.path)
 
         if self.login_required() and not self.logged_in():
-            self.write(dumps({"success": False}))
+            self.write(dumps({
+                "success": False,
+                "error": "Niet ingelogd"
+            }))
             return
 
         def write_cameras():
-            self.write(dumps([obj.to_dict() for obj in settings.cameras]))
+            self.write(dumps({
+                "success": True,
+                "cameras": [obj.to_dict() for obj in settings.cameras]
+            }))
 
         if action == "getCameras":
             write_cameras()

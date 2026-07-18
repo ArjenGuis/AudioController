@@ -1,6 +1,7 @@
 $(function() {
 	var $camid = null;
 	var $cameras = null;
+	var $wfs = new Wfs();
 
 	$.ajax({
 		url: "/camera/getCameras",
@@ -8,25 +9,27 @@ $(function() {
 		contentType: "application/json",
 		dataType: 'json',
 		success: function($response){
-			$('#cams ul').empty();
-			$cameras = $response;
+			if( $response.success ){
+				$('#cams ul').empty();
+				$cameras = $response.cameras;
 
-			$index = 0;
-			for(let $item of $cameras){
-				$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
-				$index++;
+				$index = 0;
+				for(let $item of $cameras){
+					$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
+					$index++;
+				}
+
+				$('#cams button').on('click', function(){
+					getPresets($(this));
+				});
+
+				// next step: load presets
+				getPresets( $('#cams li:first-child button') );
+				$('#move').show()
+			} else {
+				$('#live video, #move, #presets, #footer').hide();
+				$('#live .alert').html($response.error).show();
 			}
-
-			$('#cams button').on('click', function(){
-				getPresets($(this));
-			});
-
-			// next step: load presets
-			getPresets( $('#cams li:first-child button') );
-			$('#move').show()
-		},
-		fail: function($response){ 
-			configFail($btn,$response); 
 		}
 	});
 
@@ -42,6 +45,11 @@ $(function() {
 		
 		$btn.addClass('active');
 		
+		// restart wfs
+		$wfs.destroy();
+		$wfs = null;
+		$wfs = new Wfs();
+
 		$.ajax({
 			url: "/camera/getPresets",
 			type: "POST",
@@ -97,18 +105,17 @@ $(function() {
 								$e.preventDefault(); 
 							});
 
-							var $wfs = new Wfs();
 							$wfs.attachMedia( $video, "ws://"+$cameras[$camid].url_extern+":"+$cameras[$camid].port_ws+$response.uri );
 						}
 						$('#live video, #move, #presets, #footer').show();
 						$('#live .alert').hide();
 					} else {
 						$('#live video, #move, #presets, #footer').hide();
-						$('#live .alert').show();
+						$('#live .alert').html($response.error).show();
 					}
 				} else {
 					console.error('getLive fail: '+$response.error);
-					$('#move').hide()
+					$('#live video, #move, #presets, #footer').hide();
 				}
 			}
 		});
@@ -158,10 +165,7 @@ $(function() {
 			data: JSON.stringify({
 				id: parseInt($camid),
 				preset: parseInt($btn.val())
-			}),
-			fail: function($response){ 
-				configFail($btn,$response); 
-			}
+			})
 		});
 	}
 
@@ -179,9 +183,6 @@ $(function() {
 			}),
 			success: function($response){
 				$('#footer .streampublish input').attr('checked', $response.success)
-			},
-			fail: function($response){ 
-				configFail($btn,$response); 
 			}
 		});
 	}
@@ -203,10 +204,7 @@ $(function() {
 			data: JSON.stringify({
 				id: parseInt($camid),
 				publish: $val,
-			}),
-			fail: function($response){ 
-				configFail($btn,$response); 
-			}
+			})
 		});
 	});
 
@@ -236,80 +234,57 @@ $(function() {
 				dataType: 'json',
 				data: JSON.stringify({
 					id: parseInt($camid),
-				}),
-				fail: function($response){ 
-					configFail($btn,$response); 
-				}
+				})
 			});
 		}
 	});
 	
 	/*
 	 * move
-	 * /
-	var $moveID = null;
-	var $touch = 'ontouchstart' in document.documentElement; // true | false
-	$('#move button').on('click touchstart mousedown', function( $e ){ 
-		$('#presets button').removeClass('active');
-
-		var $clicks = $(".toggleClicks").is(":checked"); // true | false
-		var $action = ($e.type == "click" && $clicks) ||
-						($e.type == "touchstart" && $touch && !$clicks) ||
-						($e.type == "mousedown" && !$touch && !$clicks);
-
-		if( $action ){
-			var $btn = $(this);
-			var $id = $(this).attr("id");
-
-//$('#debug').append("<p>btn: "+$id+"<br>type: "+$e.type+"<br>touch: "+$touch+"<br>clicks: "+$clicks+"<br>action: "+$action+"</p>");
-
-			if( $id != 'stop' ){
-				$moveID = $id;
-				$.post('/ptzcam/api/config', {task: 'move', p: $id + "_start", s: 20}).fail( function($response){ configFail($btn,$response); }, "json");
-			}
-			if( $e.type == "click" ){
-				$.post('/ptzcam/api/config', {task: 'move', p: $id + "_stop", s: 0}).fail( function($response){ configFail($btn,$response); }, "json");
-			}
-		}
-
-//		console.log("touch: " + $touch + "\nclicks: " + $clicks + "\nevent: " + $e.type + "\naction: " + $action);
-	});
-
-	$('#move button').on('touchend mouseup', function( $e ){ 
-		var $clicks = $(".toggleClicks").is(":checked"); // true | false
-		var $action = ($e.type == "touchend" && $touch && !$clicks ) || 
-						($e.type == "mouseup" && !$touch && !$clicks);
-		
-		if( $action ){
-			var $btn = $(this);
-			var $id = $(this).attr("id");
-			if( $id != 'stop' ){
-				$.post('/ptzcam/api/config', {task: 'move', p: $id + "_stop", s: 0}).fail( function($response){ configFail($btn,$response); }, "json");
-			}
-		}
-
-//		console.log("touch: " + $touch + "\nclicks: " + $clicks + "\nevent: " + $e.type + "\naction: " + $action);
-	});
-
-	$('#move #stop').click( function(){ 
-		if( $moveID != null ){
-			var $btn = $(this);
-			$.post('/ptzcam/api/config', {task: 'move', p: $moveID + "_stop", s: 0}).fail( function($response){ configFail($btn,$response); }, "json");
-		}
-	});
-	
-	/*
-	 * configFail
 	 */
-	function configFail($btn, $response){
-		console.log($response.responseJSON);
-		$('#debug').append("<p>"+$response.responseJSON.message+"</p>");
-		
-		if( $response.responseJSON.error ){
-			$btn.css("background-color", "red");
-			if( $response.responseJSON.message == "Unauthorized" ){
-				location.reload(true);
-			}
+	$('#move button.ptzmove').on('click touchstart mousedown', function($evt){
+		console.log($evt.type)
+		if( $evt.type == 'click' ){
+			moveClick($evt);
+		} else {
+			moveStart($evt);
 		}
+	});
+	$('#move button.ptzstop').on('click touchstart mousedown', function($evt){
+		console.log($evt.type)
+		moveStop();
+	});
+	$('#move button.ptzmove').on('touchend mouseup', function($evt){
+		moveStop();
+	});
+	function moveStart($evt){
+		$('#presets button').removeClass('active');
+		$.ajax({
+			url: "/camera/moveStart",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				id: parseInt($camid),
+				direction: $evt.currentTarget.id
+			})
+		});
 	}
+	function moveStop(){
+		$('#presets button').removeClass('active');
+		$.ajax({
+			url: "/camera/moveStop",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				id: parseInt($camid),
+			})
+		});
+	}
+	function moveClick($evt){
+		moveStart($evt);
+		stop = setTimeout(moveStop, 75);
+	}
+
 });
