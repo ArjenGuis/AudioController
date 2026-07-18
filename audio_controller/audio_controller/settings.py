@@ -4,8 +4,9 @@ from typing import List
 from pathlib import Path
 import pickle
 from dataclasses import dataclass, field, asdict
+import hashlib
 
-from . import fonts, camera
+from . import fonts, camera, users
 
 #
 # Classes and default settings
@@ -433,6 +434,19 @@ def validate_camera_attribute(name: str, value):
         return None
 
 
+def validate_user_attribute(name: str, value):
+    """ Validate value for attribute with name of a User object.
+    Return value, or adjusted value, or None if it is not valid. """
+    try:
+        if name == 'username':
+            return value[0:50]  # max 50 characters
+        elif name == 'password':
+            return value[0:50]  # max 50 characters
+        return value
+    except:
+        return None
+
+
 def validate_psalmbord(obj: Psalmbord):
     """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
     try:
@@ -576,6 +590,28 @@ def update_cameras(new_cameras: List[dict]):
             new_list.append(cam)
 
         cameras[:] = new_list
+        save()
+    except Exception:
+        print(traceback.format_exc())
+        raise
+
+def update_users(new_users: List[dict]):
+    try:
+        new_list = []
+
+        for i, obj in enumerate(new_users):
+            usr = users.User(**obj)
+            usr.id = i
+
+            usr.username = validate_user_attribute("username", usr.username)
+            usr.password = validate_user_attribute("password", usr.password)
+
+            # password encrypten
+            usr.password = hashlib.blake2b(usr.password.encode()).hexdigest()
+
+            new_list.append(usr)
+
+        users[:] = new_list
         save()
     except Exception:
         print(traceback.format_exc())

@@ -5,6 +5,8 @@ import string
 import hashlib
 import os, sys
 from pathlib import Path
+from dataclasses import dataclass, field, asdict, is_dataclass
+
 
 
 # file to save usernames and passwords
@@ -16,6 +18,11 @@ for file in [file_users, file_cookie]:
     if not file.exists():
         with open(file, 'w'):
             pass
+
+@dataclass
+class User:
+    username: str
+    password: str
 
 
 def clear_users():
@@ -42,6 +49,21 @@ def check_user(username: str, password: str):
             return True
     return False
 
+
+def get_users():
+    users: list[User] = []
+
+    with open(file_users, "r") as f:
+        for line in f:
+            username, password = line.strip().split(";")
+            users.append(
+                User(
+                    username=username,
+                    password=password
+                )
+            )
+
+    return users
 
 def get_cookie_secret():
     with open(file_cookie, 'r') as f:

@@ -403,6 +403,7 @@ class Destinations(AccordionItem):
 
         self.refresh = initialize
 
+
 def camera(name, url_intern, url_extern, port_http, port_onvif, port_ws, username, password):
     return {
         "name": name, 
@@ -540,6 +541,73 @@ class Cameras(AccordionItem):
 
         self.refresh = initialize
 
+def user(username, password):
+    return {
+        "username": username, 
+        "password": password,
+    }
+
+class Users(AccordionItem):
+    def __init__(self):
+        super().__init__("Gebruikers")
+
+        plist = PagedList(self.body.element, "").hide_count().disable_pagination()
+        plist.get_styling().table_class("table borderless")
+
+        def text_element(attr, item):
+            r = E("input").attr("type", "text")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def password_element(attr, item):
+            r = E("input").attr("type", "password")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        plist.add_column("username", "Naam").item_to_element(text_element.bind(None, "username"))
+        plist.add_column("password", "Wachtwoord").item_to_element(password_element.bind(None, "password"))
+
+        async def delete_item(item):
+            # todo
+            return
+
+        async def save_changes():
+            self.users = await utils.post(
+                utils.get_url("login/setUsers"), {"users": self.users}
+            )
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        def add_item(evt):
+            self.users.append(user("username", "password"))
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        button_add = E("button").attr("class", "btn btn-primary btn-sm").inner_html("Toevoegen")
+        button_add.element.onclick = add_item
+
+        self.body.append(button_add)
+
+        async def initialize():
+            self.users = await utils.post(utils.get_url("login/getUsers"), {})
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        self.refresh = initialize
+
+
 class TestDebug(AccordionItem):
     def __init__(self):
         super().__init__("Test and debug")
@@ -631,7 +699,7 @@ class Page(ElementWrapper):
     def __init__(self):
         super().__init__(element("div"))
         self.attr("style", "max-width: 1000px;")
-        self.items = [Settings(), Sources(), Destinations(), Cameras(), TestDebug()]
+        self.items = [Settings(), Sources(), Destinations(), Cameras(), Users(), TestDebug()]
         for i in self.items:
             self.append(i)
 

@@ -21,7 +21,7 @@ import tornado.web
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, controller, utils, loggers, gpio, __version__
+from audio_controller import settings, controller, users, loggers, gpio, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -146,13 +146,16 @@ class Psalmbord(tornado.web.RequestHandler):
 
 
 class Login(BaseHandler):
+    def get_users(self):
+        self.write(dumps([asdict(obj) for obj in users.get_users()]))
+
     def check_user(self, username, password):
         """Check if user has provided correct password to login"""
         if username is None or password is None:
             return False
-        return utils.check_user(username, password)
+        return users.check_user(username, password)
 
-    def post(self):
+    async def post(self):
         action = get_action(self.request.path)
 
         if action == "login_required":
@@ -188,7 +191,16 @@ class Login(BaseHandler):
             self.write(dumps({"success": True}))
             # self.redirect_relative("/")  # not used, implemented client side
 
-        # elif action == 'register': ??
+        elif action == 'setUsers':
+            args = self.body_to_json()
+            users = args["users"]
+            settings.update_users(users)
+            get_users()
+            await notify_change()
+
+        elif action == "getUsers":
+            self.get_users()
+            return
 
 
 class General(BaseHandler):
