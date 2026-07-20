@@ -608,11 +608,13 @@ def update_users(new_users: List[dict]):
             usr = user.User(**obj)
             usr.id = i
 
+            if usr.password != users[i].password:
+                usr.password = validate_user_attribute("password", usr.password)
+                usr.password = user.encryptPassword(usr.password)
+            
             usr.username = validate_user_attribute("username", usr.username)
-            usr.password = validate_user_attribute("password", usr.password)
-
-            # password encrypten
-            usr.password = user.encryptPassword(usr.password)
+            usr.admin = usr.admin or usr.admin == "True"
+            usr.camera = usr.camera or usr.camera == "True"
 
             new_list.append(usr)
 

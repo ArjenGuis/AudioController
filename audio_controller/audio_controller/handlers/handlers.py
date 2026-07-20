@@ -152,7 +152,7 @@ class Login(BaseHandler):
             return False
         else:
             for usr in settings.users:
-                if username == usr.username and user.encryptPassword(password) == usr.password:
+                if username == usr.username and user.encryptPassword(password) == usr.password and usr.admin:
                     return True
         return False
 

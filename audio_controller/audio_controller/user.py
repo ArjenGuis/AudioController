@@ -23,6 +23,8 @@ for file in [file_users, file_cookie]:
 class User:
     username: str
     password: str
+    admin: bool = False
+    camera: bool = False
 
 
 def clear_users():
@@ -85,7 +87,7 @@ def get_cookie_secret():
 def default_users():
     """ Default users, used as initial and factory defaults """
     result = [
-        user.User('admin', "admin"),
+        User('admin', "admin", True, True),
     ]
     for i, obj in enumerate(result):
         obj.id = i

@@ -541,10 +541,12 @@ class Cameras(AccordionItem):
 
         self.refresh = initialize
 
-def user(username, password):
+def user(username, password, admin, camera):
     return {
         "username": username, 
         "password": password,
+        "admin": admin,
+        "camera": camera
     }
 
 class Users(AccordionItem):
@@ -567,7 +569,7 @@ class Users(AccordionItem):
 
         def password_element(attr, item):
             r = E("input").attr("type", "password")
-            r.element.value = item[attr]
+            #r.element.value = item[attr]
 
             def onchange(evt):
                 item[attr] = r.element.value
@@ -576,8 +578,21 @@ class Users(AccordionItem):
             r.element.onchange = onchange
             return r.element
 
+        def checkbox_element(attr, item):
+            r = E("input").attr("type", "checkbox")
+            r.element.checked = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.checked
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
         plist.add_column("username", "Naam").item_to_element(text_element.bind(None, "username"))
         plist.add_column("password", "Wachtwoord").item_to_element(password_element.bind(None, "password"))
+        plist.add_column("admin", "Admin").item_to_element(checkbox_element.bind(None, "admin"))
+        plist.add_column("camera", "Camera").item_to_element(checkbox_element.bind(None, "camera"))
 
         async def delete_item(item):
             # todo
