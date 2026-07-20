@@ -190,7 +190,8 @@ async def login():
                     logged_in = True
                     dialogs.dialog_login.hide()
                     break
-            # dialogs.dialog_login.show_login_failed()
+                else:
+                    dialogs.dialog_login.show_login_failed(r['error'])
         except:
             await utils.sleep(0.1)
 

@@ -6,7 +6,7 @@ import pickle
 from dataclasses import dataclass, field, asdict
 import hashlib
 
-from . import fonts, camera, users
+from . import fonts, camera, user
 
 #
 # Classes and default settings
@@ -172,6 +172,7 @@ sources: List[Source] = []
 destinations: List[Destination] = []
 psalmbord = Psalmbord()
 cameras: List[camera.Camera] = []
+users: List[user.User] = []
 
 #
 # Save and load
@@ -239,9 +240,11 @@ def use_from_store(store: dict):
     sources.clear()
     destinations.clear()
     cameras.clear()
+    users.clear()
     for obj in store['sources']: sources.append(Source(**obj))
     for obj in store['destinations']: destinations.append(Destination(**obj))
     for obj in store["cameras"]: cameras.append(camera.Camera.from_dict(obj))
+    for obj in store["users"]: users.append(user.User(**obj))
     psalmbord.__init__(**store['psalmbord'])
 
 
@@ -268,6 +271,7 @@ def save():
             'destinations': [asdict(obj) for obj in destinations],
             'psalmbord': asdict(psalmbord),
             'cameras': [obj.to_dict() for obj in cameras],
+            'users': [asdict(obj) for obj in users],
         }
         f.write(pickle.dumps(store))
 
@@ -280,6 +284,7 @@ def restore():
         'destinations': [asdict(obj) for obj in default_destinations()],
         'psalmbord': asdict(default_psalmbord()),
         'cameras': [obj.to_dict() for obj in camera.default_cameras()],
+        'users': [asdict(obj) for obj in user.default_users()],
     }
     use_from_store(store)
     save()
@@ -600,14 +605,14 @@ def update_users(new_users: List[dict]):
         new_list = []
 
         for i, obj in enumerate(new_users):
-            usr = users.User(**obj)
+            usr = user.User(**obj)
             usr.id = i
 
             usr.username = validate_user_attribute("username", usr.username)
             usr.password = validate_user_attribute("password", usr.password)
 
             # password encrypten
-            usr.password = hashlib.blake2b(usr.password.encode()).hexdigest()
+            usr.password = user.encryptPassword(usr.password)
 
             new_list.append(usr)
 

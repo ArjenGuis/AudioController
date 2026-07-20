@@ -21,7 +21,7 @@ import tornado.web
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, controller, users, loggers, gpio, __version__
+from audio_controller import settings, controller, user, loggers, gpio, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -146,14 +146,15 @@ class Psalmbord(tornado.web.RequestHandler):
 
 
 class Login(BaseHandler):
-    def get_users(self):
-        self.write(dumps([asdict(obj) for obj in users.get_users()]))
-
     def check_user(self, username, password):
         """Check if user has provided correct password to login"""
         if username is None or password is None:
             return False
-        return users.check_user(username, password)
+        else:
+            for usr in settings.users:
+                if username == usr.username and user.encryptPassword(password) == usr.password:
+                    return True
+        return False
 
     async def post(self):
         action = get_action(self.request.path)
@@ -161,6 +162,9 @@ class Login(BaseHandler):
         if action == "login_required":
             self.write(dumps({"login_required": self.login_required()}))
             return
+
+        def write_users():
+            self.write(dumps([asdict(obj) for obj in settings.users]))
 
         if action == "login":
             # check if already logged in (reading cookie)
@@ -183,7 +187,7 @@ class Login(BaseHandler):
                     msg = f"Login failed for user {username}"
                     print(msg)
                     main_logger.info(msg)
-                    self.write(dumps({"success": False}))
+                    self.write(dumps({"success": False,"error": msg}))
 
         elif action == "logout":
             # remove cookie user
@@ -195,11 +199,11 @@ class Login(BaseHandler):
             args = self.body_to_json()
             users = args["users"]
             settings.update_users(users)
-            get_users()
+            write_users()
             await notify_change()
 
         elif action == "getUsers":
-            self.get_users()
+            write_users()
             return
 
 

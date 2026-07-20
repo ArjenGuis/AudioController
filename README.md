@@ -219,9 +219,9 @@ ssh pi@${PI_IP}
 cd ~/AudioController/audio_controller/audio_controller/
 sudo -s
 python3
-import users
-users.add_user("<username>", "<password>")
-assert users.check_user("<username>", "<password>"), "Configuration failed"
+import user
+user.add_user("<username>", "<password>")
+assert user.check_user("<username>", "<password>"), "Configuration failed"
 exit()
 ```
 
