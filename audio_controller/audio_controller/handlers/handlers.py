@@ -213,24 +213,12 @@ class General(BaseHandler):
     async def post(self):
         action = get_action(self.request.path)
 
-        if action == "connected":
-            if controller.itec.serial is None:
-                raise tornado.web.HTTPError(503)  # 503 = Dienst niet beschikbaar
-            self.write(dumps({"success": True}))
-            return
-
         if self.login_required() and not self.logged_in():
             self.write(dumps({"success": False}))
             return
 
         def write_settings():
             self.write(dumps(asdict(settings.settings)))
-
-        def write_sources():
-            self.write(dumps([asdict(obj) for obj in settings.sources]))
-
-        def write_destinations():
-            self.write(dumps([asdict(obj) for obj in settings.destinations]))
 
         if action == "restoreSettings":
             settings.restore()
@@ -248,6 +236,67 @@ class General(BaseHandler):
             loggers.enable(settings.settings.enable_logging)
             write_settings()
             await notify_change()
+            return
+
+        elif action == "downloadLog":
+            self.write(loggers.get_logs_as_binary())
+            return
+
+        elif action == "ifconfig":
+            self.write(os.popen("ifconfig").read())
+            return
+
+        elif action == "reboot":
+            os.system("shutdown -r now")
+            return
+
+        elif action == "shutdown":
+            os.system("shutdown now")
+            return
+
+        elif action == "downloadSettings":
+            self.write(settings.get_binary())
+            return
+
+        elif action == "uploadSettings":
+            file_content = self.request.files["file"][0]["body"]
+            settings.set_binary(file_content)
+            self.write(dumps({"success": True}))
+            return
+
+        elif action == "test_gpio":
+            if gpio.is_enabled:
+                await gpio.test_async()
+            return
+
+        # PSALMBORD
+        elif action == "getPsalmbord":
+            self.write(dumps(asdict(settings.pb)))
+            return
+
+        elif action == "setPsalmbord":
+            args = self.body_to_json()
+            settings.pb.update_psalmbord(
+                args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"], args["refreshrate"]
+            )
+            self.write(dumps(asdict(settings.pb)))
+            return
+
+
+class Audio(BaseHandler):
+    async def post(self):
+        action = get_action(self.request.path)
+
+        def write_sources():
+            self.write(dumps([asdict(obj) for obj in settings.sources]))
+
+        def write_destinations():
+            self.write(dumps([asdict(obj) for obj in settings.destinations]))
+
+        if action == "connected":
+            if controller.itec.serial is None:
+                raise tornado.web.HTTPError(503)  # 503 = Dienst niet beschikbaar
+            self.write(dumps({"success": True}))
             return
 
         elif action == "getSources":
@@ -276,29 +325,9 @@ class General(BaseHandler):
             await notify_change()
             return
 
-        elif action == "getPsalmbord":
-            self.write(dumps(asdict(settings.pb)))
-            return
-
-        elif action == "setPsalmbord":
-            args = self.body_to_json()
-            settings.pb.update_psalmbord(
-                args["fontfamily"], args["fontsize"], args["fontweight"], args["active"], args["screens"], args["refreshrate"]
-            )
-            self.write(dumps(asdict(settings.pb)))
-            return
-
         elif action == "getInputLevels":
             levels = controller.config.current_levels
             self.write(dumps(levels))
-            return
-
-        elif action == "downloadLog":
-            self.write(loggers.get_logs_as_binary())
-            return
-
-        elif action == "ifconfig":
-            self.write(os.popen("ifconfig").read())
             return
 
         elif action == "soundcards":
@@ -307,32 +336,10 @@ class General(BaseHandler):
             self.write(f"{aplay}\n{arecord}")
             return
 
-        elif action == "reboot":
-            os.system("shutdown -r now")
-            return
-
-        elif action == "shutdown":
-            os.system("shutdown now")
-            return
-
         elif action == "getRoutes":
             self.write(controller.get_routes())
             return
 
-        elif action == "downloadSettings":
-            self.write(settings.get_binary())
-            return
-
-        elif action == "uploadSettings":
-            file_content = self.request.files["file"][0]["body"]
-            settings.set_binary(file_content)
-            self.write(dumps({"success": True}))
-            return
-
-        elif action == "test_gpio":
-            if gpio.is_enabled:
-                await gpio.test_async()
-            return
 
 class CameraApp(tornado.web.RequestHandler):
     def get(self):

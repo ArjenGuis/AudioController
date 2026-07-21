@@ -28,6 +28,7 @@ class Settings:
     enable_option_auto_switch: bool = False  # to be set by administrator, to enable/disable the option to enable auto scan and switch
     enable_auto_switch: bool = False  # when True, the IN ports belonging to all enabled sources are scanned, and when there is a signal, the source is automatically selected
     timeout_auto_switch: int = 15  # minutes to wait after signal is away, before switching to other
+    enable_audio: bool = True # enable Geluid functionaliteit
     enable_psalmbord: bool = False  # enable Psalmbord functionaliteit
     enable_camera: bool = False  # enable Psalmbord functionaliteit
     enable_logging: bool = True
@@ -160,6 +161,9 @@ def upgrade(store: dict):
         ]
         store['psalmbord']['refreshrate'] = 10
     
+    if store['settings']['version'] == 10:
+        store['settings']['version'] = 11
+        store['settings']['enable_audio'] = True
     #
     # future upgrades will be placed here
     #

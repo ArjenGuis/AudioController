@@ -137,8 +137,14 @@ logged_in = False
 
 
 async def create_main_menu():
-    main_menu.append(MenuItem().set_title("Geluid").set_page(page_overview.Page()))
     settings = await utils.post(utils.get_url('general/getSettings'), {})
+    set_title(settings['title'])
+
+
+    if settings["enable_audio"]:
+        main_menu.append(
+            MenuItem().set_title("Geluid").set_page(page_overview.Page())
+        )
     if settings["enable_psalmbord"]:
         main_menu.append(
             MenuItem().set_title("Psalmbord").set_page(page_psalmbord.Page())
@@ -147,7 +153,9 @@ async def create_main_menu():
         main_menu.append(
             MenuItem().set_title("Camera").set_page(page_camera.Page())
         )
-    main_menu.append(MenuItem().set_title("Instellingen").set_page(page_admin.Page()))
+    main_menu.append(
+        MenuItem().set_title("Instellingen").set_page(page_admin.Page())
+    )
 
     login = await utils.post(utils.get_url('login/login_required'), {})
     if login['login_required']:

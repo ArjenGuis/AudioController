@@ -98,7 +98,6 @@ class ButtonsSettings(ElementWrapper):
         async def initialize():
             r = await utils.post(utils.get_url('general/getSettings'), {})
             set_inputs(r)
-            set_title(r['title'])
 
         self.refresh = initialize
 
@@ -128,22 +127,22 @@ class SourcesDestinations(ElementWrapper):
         )
 
         async def get_sources():
-            self.sources = await utils.post(utils.get_url('general/getSources'), {})
+            self.sources = await utils.post(utils.get_url('audio/getSources'), {})
 
         async def select_source(radio_button, source, evt):
             if radio_button.element.checked:
                 for s in self.sources:
                     s['selected'] = False
                 source['selected'] = True
-                self.sources = await utils.post(utils.get_url('general/setSources'), {'sources': self.sources})
+                self.sources = await utils.post(utils.get_url('audio/setSources'), {'sources': self.sources})
                 show_sources()
 
         async def get_destinations():
-            self.destinations = await utils.post(utils.get_url('general/getDestinations'), {})
+            self.destinations = await utils.post(utils.get_url('audio/getDestinations'), {})
 
         async def select_destination(checkbox, destination, evt):
             destination['selected'] = checkbox.element.checked
-            self.destinations = await utils.post(utils.get_url('general/setDestinations'), {'destinations': self.destinations})
+            self.destinations = await utils.post(utils.get_url('audio/setDestinations'), {'destinations': self.destinations})
             show_destinations()
 
         volume_spans = {}  # key = source_id (str), value = span-element
@@ -198,7 +197,7 @@ class SourcesDestinations(ElementWrapper):
             volume_on = "fas fa-volume-up"
             while True:
                 try:
-                    inputLevels = await utils.post(utils.get_url('general/getInputLevels'), {})
+                    inputLevels = await utils.post(utils.get_url('audio/getInputLevels'), {})
                     inputLevels = dict(inputLevels)
                     for source_id, level in inputLevels.items():
                         span = volume_spans[str(source_id)]

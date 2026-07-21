@@ -45,6 +45,7 @@ def make_app():
         ("/", handlers.Main),
         ("/login/.*", handlers.Login),
         ("/general/.*", handlers.General),
+        ("/audio/.*", handlers.Audio),
         ("/psalmbord", handlers.Psalmbord),
         ("/camera", handlers.CameraApp),
         ("/camera/.*", handlers.Camera),
@@ -58,8 +59,9 @@ def make_app():
 
 def schedule_tasks(loop: asyncio.BaseEventLoop):
     """Add additional async tasks to the same event-loop as the running webserver."""
-    loop.create_task(controller.scan_ports())
-    loop.create_task(controller.auto_switch())
+    if settings.settings.enable_audio:
+        loop.create_task(controller.scan_ports())
+        loop.create_task(controller.auto_switch())
     loop.create_task(set_gpio())
 
 
@@ -99,7 +101,7 @@ async def set_gpio():
             try:
                 connected = False
                 # if there is at least 1 destination selected, connected becomes True
-                if settings.settings.connect_source_destination:
+                if settings.settings.enable_audio and settings.settings.connect_source_destination:
                     for dest in settings.destinations:
                         if dest.enabled and dest.selected:
                             connected = True
@@ -125,7 +127,8 @@ def main():
 
         ioloop = tornado.ioloop.IOLoop.current()
         schedule_tasks(ioloop.asyncio_loop)
-        controller.set_routes()
+        if settings.settings.enable_audio:
+            controller.set_routes()
         if not settings.settings.enable_logging:
             main_logger.info("Logging is disabled")
             loggers.enable(False)

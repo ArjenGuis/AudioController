@@ -49,6 +49,7 @@ class Settings(AccordionItem):
         show_button_mute_sound = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_auto_switch = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_timeout = E("input").attr("class", "form-control").attr("type", "number")
+        input_enable_audio = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_enable_psalmbord = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_enable_camera = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_enable_logging = E("input").attr("class", "form-control").attr("type", "checkbox")
@@ -61,6 +62,41 @@ class Settings(AccordionItem):
             .append(
                 E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Titel"),
                 E("div").attr("class", "{}".format(width_2)).append(input_title),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
+                E("label")
+                .attr("class", "{} col-form-label".format(width_1))
+                .inner_html("Geluid functie inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_audio),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
+                E("label")
+                .attr("class", "{} col-form-label".format(width_1))
+                .inner_html("Psalmbord functie inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_psalmbord),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
+                E("label")
+                .attr("class", "{} col-form-label".format(width_1))
+                .inner_html("Camera functie inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_camera),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
+                E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Logging inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_logging),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
+                E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Geluid").attr('style','font-weight:bold; font-size: initial;'),
             ),
             E("div")
             .attr("class", "form-group row")
@@ -116,28 +152,6 @@ class Settings(AccordionItem):
                 .inner_html("Wachttijd (minuten) voor 'Automatisch schakelen'"),
                 E("div").attr("class", "{}".format(width_2)).append(input_timeout),
             ),
-            E("div")
-            .attr("class", "form-group row")
-            .append(
-                E("label")
-                .attr("class", "{} col-form-label".format(width_1))
-                .inner_html("Psalmbord functie inschakelen"),
-                E("div").attr("class", "{}".format(width_2)).append(input_enable_psalmbord),
-            ),
-            E("div")
-            .attr("class", "form-group row")
-            .append(
-                E("label")
-                .attr("class", "{} col-form-label".format(width_1))
-                .inner_html("Camera functie inschakelen"),
-                E("div").attr("class", "{}".format(width_2)).append(input_enable_camera),
-            ),
-            E("div")
-            .attr("class", "form-group row")
-            .append(
-                E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Logging inschakelen"),
-                E("div").attr("class", "{}".format(width_2)).append(input_enable_logging),
-            ),
         )
 
         def get_inputs() -> dict:
@@ -151,6 +165,7 @@ class Settings(AccordionItem):
                 "show_button_mute_sound": show_button_mute_sound.element.checked,
                 "enable_option_auto_switch": input_auto_switch.element.checked,
                 "timeout_auto_switch": input_timeout.element.value,
+                "enable_audio": input_enable_audio.element.checked,
                 "enable_psalmbord": input_enable_psalmbord.element.checked,
                 "enable_camera": input_enable_camera.element.checked,
                 "enable_logging": input_enable_logging.element.checked,
@@ -166,6 +181,7 @@ class Settings(AccordionItem):
             show_button_mute_sound.element.checked = settings["show_button_mute_sound"]
             input_auto_switch.element.checked = settings["enable_option_auto_switch"]
             input_timeout.element.value = settings["timeout_auto_switch"]
+            input_enable_audio.element.checked = settings["enable_audio"]
             input_enable_psalmbord.element.checked = settings["enable_psalmbord"]
             input_enable_camera.element.checked = settings["enable_camera"]
             input_enable_logging.element.checked = settings["enable_logging"]
@@ -191,6 +207,7 @@ class Settings(AccordionItem):
         show_button_mute_sound.element.onchange = onchange
         input_auto_switch.element.onchange = onchange
         input_timeout.element.onchange = onchange
+        input_enable_audio.element.onchange = onchange
         input_enable_psalmbord.element.onchange = onchange
         input_enable_camera.element.onchange = onchange
         input_enable_logging.element.onchange = onchange
@@ -211,7 +228,7 @@ def source(name, enabled, port_url, scan_prio, db_level, selected):
 
 class Sources(AccordionItem):
     def __init__(self):
-        super().__init__("Bronnen")
+        super().__init__("Geluid - Bronnen")
         plist = PagedList(self.body.element, "").hide_count().disable_pagination()
         plist.get_styling().table_class("table borderless")
 
@@ -247,12 +264,12 @@ class Sources(AccordionItem):
 
         async def delete_item(item):
             self.sources.remove(item)
-            self.sources = await utils.post(utils.get_url("general/setSources"), {"sources": self.sources})
+            self.sources = await utils.post(utils.get_url("audio/setSources"), {"sources": self.sources})
             plist.get_server().data = self.sources
             plist.refresh()
 
         async def save_changes():
-            self.sources = await utils.post(utils.get_url("general/setSources"), {"sources": self.sources})
+            self.sources = await utils.post(utils.get_url("audio/setSources"), {"sources": self.sources})
             plist.get_server().data = self.sources
             plist.refresh()
 
@@ -268,7 +285,7 @@ class Sources(AccordionItem):
             j = max(0, min(j, len(self.sources) - 1))
             self.sources.remove(item)
             self.sources.insert(j, item)
-            self.sources = await utils.post(utils.get_url("general/setSources"), {"sources": self.sources})
+            self.sources = await utils.post(utils.get_url("audio/setSources"), {"sources": self.sources})
             plist.get_server().data = self.sources
             plist.refresh()
 
@@ -295,7 +312,7 @@ class Sources(AccordionItem):
         self.body.append(button_add)
 
         async def initialize():
-            self.sources = await utils.post(utils.get_url("general/getSources"), {})
+            self.sources = await utils.post(utils.get_url("audio/getSources"), {})
             self.sources = list(self.sources)
             plist.get_server().data = self.sources
             plist.refresh()
@@ -309,7 +326,7 @@ def destination(name, enabled, port_url_file, selected):
 
 class Destinations(AccordionItem):
     def __init__(self):
-        super().__init__("Bestemmingen")
+        super().__init__("Geluid - Bestemmingen")
         plist = PagedList(self.body.element, "").hide_count().disable_pagination()
         plist.get_styling().table_class("table borderless")
 
@@ -344,14 +361,14 @@ class Destinations(AccordionItem):
         async def delete_item(item):
             self.destinations.remove(item)
             self.destinations = await utils.post(
-                utils.get_url("general/setDestinations"), {"destinations": self.destinations}
+                utils.get_url("audio/setDestinations"), {"destinations": self.destinations}
             )
             plist.get_server().data = self.destinations
             plist.refresh()
 
         async def save_changes():
             self.destinations = await utils.post(
-                utils.get_url("general/setDestinations"), {"destinations": self.destinations}
+                utils.get_url("audio/setDestinations"), {"destinations": self.destinations}
             )
             plist.get_server().data = self.destinations
             plist.refresh()
@@ -369,7 +386,7 @@ class Destinations(AccordionItem):
             self.destinations.remove(item)
             self.destinations.insert(j, item)
             self.destinations = await utils.post(
-                utils.get_url("general/setDestinations"), {"destinations": self.destinations}
+                utils.get_url("audio/setDestinations"), {"destinations": self.destinations}
             )
             plist.get_server().data = self.destinations
             plist.refresh()
@@ -397,7 +414,7 @@ class Destinations(AccordionItem):
         self.body.append(button_add)
 
         async def initialize():
-            self.destinations = await utils.post(utils.get_url("general/getDestinations"), {})
+            self.destinations = await utils.post(utils.get_url("audio/getDestinations"), {})
             plist.get_server().data = self.destinations
             plist.refresh()
 
@@ -692,14 +709,14 @@ class TestDebug(AccordionItem):
 
     async def show_soundcards(self, evt):
         self.button_show_soundcards.disable()
-        txt = await utils.post(utils.get_url("general/soundcards"), {}, False)
+        txt = await utils.post(utils.get_url("audio/soundcards"), {}, False)
         console.log(txt)
         self.div_info.inner_html(txt)
         self.button_show_soundcards.enable()
 
     async def show_routes(self, evt):
         self.button_show_routes.disable()
-        txt = await utils.post(utils.get_url("general/getRoutes"), {}, False)
+        txt = await utils.post(utils.get_url("audio/getRoutes"), {}, False)
         console.log(txt)
         self.div_info.inner_html(txt)
         self.button_show_routes.enable()
