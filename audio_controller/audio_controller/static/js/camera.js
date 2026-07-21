@@ -17,10 +17,13 @@ $(function() {
 			success: function($response){
 				if( $response.success ){
 					$('#login').hide();
+
+					setUsername( $response.username );
+
 					getCameras();
 				} else {
 					$('#login').show();
-					$('#cams, #presets, #live, #move, #footer').hide();
+					$('#cams, #presets, #live, #move, #footer, #user').hide();
 
 					$('#login button').click( function(){
 						$.ajax({
@@ -35,7 +38,10 @@ $(function() {
 							success: function($response){
 								if( $response.success ){
 									$('#login').hide();
-									$('#cams, #presets, #live, #move, #footer').show();
+									$('#cams, #presets, #live, #move, #footer, #user').show();
+									
+									setUsername( $('#login #current-username').val() );
+									
 									getCameras();
 								} else {
 									$('#login .fout').show();
@@ -46,6 +52,11 @@ $(function() {
 				}
 			}
 		});
+	}
+
+	function setUsername(username){
+		$('#user .username').html(username)
+		$('#user #current-username').val(username)
 	}
 
 	/*
@@ -337,4 +348,42 @@ $(function() {
 		stop = setTimeout(moveStop, 75);
 	}
 
+	/*
+	 * user management
+	 */
+	$('#user .change').click( function(){
+		$('#user .buttons').hide();
+		$('#user .form').show();
+	});
+
+	$('#user .buttons .logout').click( function(){
+		$.ajax({
+			url: "/login/logout",
+			type: "POST",
+			success: function(){
+				window.location.reload();
+			}
+		});
+	});
+
+	$('#user .form button').click( function(){
+		$.ajax({
+			url: "/login/setUser",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				username: $('#user .form #current-username').val(),
+				password: $('#user .form #current-password').val()
+			}),
+			success: function($response){
+				if( $response.success ){
+					$('#user .form').hide();
+					$('#user .buttons').show();
+				} else {
+					alert($response.error);
+				}
+			}
+		});
+	});
 });

@@ -12,6 +12,7 @@ from pathlib import Path
 import traceback
 from dataclasses import asdict
 import asyncio
+from copy import deepcopy
 
 # external libs
 import socketio
@@ -182,7 +183,7 @@ class Login(BaseHandler):
             if self.current_user:  # not None and not empty string
                 usr = self.get_user(self.current_user)
                 if usr is not False and self.check_app(usr):
-                    return self.write(dumps({"success": True}))
+                    return self.write(dumps({"success": True,"username":self.current_user}))
 
             # else: try login if arguments are provided
             args = self.body_to_json()
@@ -212,6 +213,28 @@ class Login(BaseHandler):
             users = args["users"]
             settings.update_users(users)
             write_users()
+            await notify_change()
+
+        elif action == 'setUser':
+            args = self.body_to_json()
+            users = deepcopy(settings.users)
+
+            for usr in users:
+                if usr.username == self.current_user:
+                    usr.username = args['username']
+                    usr.password = args['password']
+
+            try:
+                settings.update_users([vars(u) for u in users])
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
             await notify_change()
 
         elif action == "getUsers":

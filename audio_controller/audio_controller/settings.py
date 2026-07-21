@@ -606,7 +606,6 @@ def update_users(new_users: List[dict]):
 
         for i, obj in enumerate(new_users):
             usr = user.User(**obj)
-            usr.id = i
 
             try:
                 setPassword = usr.password != users[i].password
