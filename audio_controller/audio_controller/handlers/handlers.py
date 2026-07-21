@@ -146,14 +146,25 @@ class Psalmbord(tornado.web.RequestHandler):
 
 
 class Login(BaseHandler):
-    def check_user(self, username, password, referer = ''):
+    def check_user(self, username, password):
         """Check if user has provided correct password to login"""
         if username is None or password is None:
             return False
         else:
-            for usr in settings.users:
-                if username == usr.username and user.encryptPassword(password) == usr.password and (usr.admin or (usr.camera and referer == "camera")):
-                    return True
+            usr = self.get_user(username, password)
+            if usr is not False and self.check_app(usr):
+                return True
+        return False
+    
+    def check_app(self, usr):
+        referer = self.request.headers.get('Referer').rsplit("/", 1)[-1]
+
+        return (usr.admin or (usr.camera and referer == "camera"))
+    
+    def get_user(self, username, password = None):
+        for usr in settings.users:
+            if username == usr.username and (password is None or user.encryptPassword(password) == usr.password):
+                return usr
         return False
 
     async def post(self):
@@ -167,29 +178,28 @@ class Login(BaseHandler):
             self.write(dumps([asdict(obj) for obj in settings.users]))
 
         if action == "login":
-            referer = self.request.headers.get('Referer').rsplit("/", 1)[-1]
-            
             # check if already logged in (reading cookie)
             if self.current_user:  # not None and not empty string
-                return self.write(dumps({"success": True}))
+                usr = self.get_user(self.current_user)
+                if usr is not False and self.check_app(usr):
+                    return self.write(dumps({"success": True}))
+
+            # else: try login if arguments are provided
+            args = self.body_to_json()
+            # if 'username' in args and 'password' in args:
+            username = str(args.get("username"))
+            password = str(args.get("password"))
+            if self.check_user(username, password):
+                msg = f"Login user {username}"
+                print(msg)
+                main_logger.info(msg)
+                self.set_cookie_username(username)  # assumes unique usernames
+                self.write(dumps({"success": True}))
             else:
-                # try login if arguments are provided
-                args = self.body_to_json()
-                # self.get_arguments
-                # if 'username' in args and 'password' in args:
-                username = str(args.get("username"))
-                password = str(args.get("password"))
-                if self.check_user(username, password, referer):
-                    msg = f"Login user {username}"
-                    print(msg)
-                    main_logger.info(msg)
-                    self.set_cookie_username(username)  # assumes unique usernames
-                    self.write(dumps({"success": True}))
-                else:
-                    msg = f"Login failed for user {username}"
-                    print(msg)
-                    main_logger.info(msg)
-                    self.write(dumps({"success": False,"error": msg}))
+                msg = f"Login failed for user {username}"
+                print(msg)
+                main_logger.info(msg)
+                self.write(dumps({"success": False,"error": msg}))
 
         elif action == "logout":
             # remove cookie user
