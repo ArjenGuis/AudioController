@@ -55,7 +55,7 @@ $(function() {
 	}
 
 	function setUsername(username){
-		$('#user .username').html(username)
+		$('#user .username').text(username)
 		$('#user #current-username').val(username)
 	}
 
@@ -89,7 +89,7 @@ $(function() {
 					$('#move').show()
 				} else {
 					$('#live video, #move, #presets, #footer').hide();
-					$('#live .alert').html($response.error).show();
+					$('#live .alert').text($response.error).show();
 				}
 			}
 		});
@@ -172,7 +172,7 @@ $(function() {
 						$('#live .alert').hide();
 					} else {
 						$('#live video, #move, #presets, #footer').hide();
-						$('#live .alert').html($response.error).show();
+						$('#live .alert').text($response.error).show();
 					}
 				} else {
 					console.error('getLive fail: '+$response.error);

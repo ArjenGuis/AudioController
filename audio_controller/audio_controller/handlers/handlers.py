@@ -200,7 +200,10 @@ class Login(BaseHandler):
                 msg = f"Login failed for user {username}"
                 print(msg)
                 main_logger.info(msg)
-                self.write(dumps({"success": False,"error": msg}))
+                self.write(dumps({
+                    "success": False,
+                    #"error": msg
+                }))
 
         elif action == "logout":
             # remove cookie user
@@ -232,7 +235,7 @@ class Login(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             await notify_change()
@@ -418,10 +421,10 @@ class Camera(BaseHandler):
                 result['presets'] = [asdict(p) for p in cam.load_presets()]
             except ConnectionError as err:
                 result['err'] = 'connection'
-                result['msg'] = str(err)
+                #result['msg'] = str(err)
             except Exception as err:
                 result['err'] = 'fout'
-                result['msg'] = str(err)
+                #result['msg'] = str(err)
 
             self.write(dumps(result))
             return
@@ -439,7 +442,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -461,7 +464,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err),
+                    #"error": str(err),
                     "traceback": traceback.format_exc()
                 }
             self.write(dumps(result))
@@ -480,7 +483,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -497,7 +500,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -513,7 +516,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -535,7 +538,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -551,7 +554,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
@@ -567,7 +570,7 @@ class Camera(BaseHandler):
             except Exception as err:
                 result = {
                     "success": False,
-                    "error": str(err)
+                    #"error": str(err)
                 }
             self.write(dumps(result))
             return
