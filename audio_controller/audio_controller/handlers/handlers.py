@@ -12,6 +12,7 @@ from pathlib import Path
 import traceback
 from dataclasses import asdict
 import asyncio
+from copy import deepcopy
 
 # external libs
 import socketio
@@ -21,7 +22,7 @@ import tornado.web
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, controller, utils, loggers, gpio, __version__
+from audio_controller import settings, controller, user, loggers, gpio, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -150,37 +151,56 @@ class Login(BaseHandler):
         """Check if user has provided correct password to login"""
         if username is None or password is None:
             return False
-        return utils.check_user(username, password)
+        else:
+            usr = self.get_user(username, password)
+            if usr is not False and self.check_app(usr):
+                return True
+        return False
+    
+    def check_app(self, usr):
+        referer = self.request.headers.get('Referer').rsplit("/", 1)[-1]
 
-    def post(self):
+        return (usr.admin or (usr.camera and referer == "camera"))
+    
+    def get_user(self, username, password = None):
+        for usr in settings.users:
+            if username == usr.username and (password is None or user.encryptPassword(password) == usr.password):
+                return usr
+        return False
+
+    async def post(self):
         action = get_action(self.request.path)
 
         if action == "login_required":
             self.write(dumps({"login_required": self.login_required()}))
             return
 
+        def write_users():
+            self.write(dumps([asdict(obj) for obj in settings.users]))
+
         if action == "login":
             # check if already logged in (reading cookie)
             if self.current_user:  # not None and not empty string
-                return self.write(dumps({"success": True}))
+                usr = self.get_user(self.current_user)
+                if usr is not False and self.check_app(usr):
+                    return self.write(dumps({"success": True,"username":self.current_user}))
+
+            # else: try login if arguments are provided
+            args = self.body_to_json()
+            # if 'username' in args and 'password' in args:
+            username = str(args.get("username"))
+            password = str(args.get("password"))
+            if self.check_user(username, password):
+                msg = f"Login user {username}"
+                print(msg)
+                main_logger.info(msg)
+                self.set_cookie_username(username)  # assumes unique usernames
+                self.write(dumps({"success": True}))
             else:
-                # try login if arguments are provided
-                args = self.body_to_json()
-                # self.get_arguments
-                # if 'username' in args and 'password' in args:
-                username = str(args.get("username"))
-                password = str(args.get("password"))
-                if self.check_user(username, password):
-                    msg = f"Login user {username}"
-                    print(msg)
-                    main_logger.info(msg)
-                    self.set_cookie_username(username)  # assumes unique usernames
-                    self.write(dumps({"success": True}))
-                else:
-                    msg = f"Login failed for user {username}"
-                    print(msg)
-                    main_logger.info(msg)
-                    self.write(dumps({"success": False}))
+                msg = f"Login failed for user {username}"
+                print(msg)
+                main_logger.info(msg)
+                self.write(dumps({"success": False,"error": msg}))
 
         elif action == "logout":
             # remove cookie user
@@ -188,7 +208,38 @@ class Login(BaseHandler):
             self.write(dumps({"success": True}))
             # self.redirect_relative("/")  # not used, implemented client side
 
-        # elif action == 'register': ??
+        elif action == 'setUsers':
+            args = self.body_to_json()
+            users = args["users"]
+            settings.update_users(users)
+            write_users()
+            await notify_change()
+
+        elif action == 'setUser':
+            args = self.body_to_json()
+            users = deepcopy(settings.users)
+
+            for usr in users:
+                if usr.username == self.current_user:
+                    usr.username = args['username']
+                    usr.password = args['password']
+
+            try:
+                settings.update_users([vars(u) for u in users])
+                result = {
+                    "success": True,
+                }
+            except Exception as err:
+                result = {
+                    "success": False,
+                    "error": str(err)
+                }
+            self.write(dumps(result))
+            await notify_change()
+
+        elif action == "getUsers":
+            write_users()
+            return
 
 
 class General(BaseHandler):

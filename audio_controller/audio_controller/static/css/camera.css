@@ -66,11 +66,21 @@ a:hover {
 	padding: 10px;
 	text-align: center;
 }
+#login div {
+	display: flex;
+	width: 100%;
+}
+#login label,
 #login input {
 	font-size: inherit;
-	margin-bottom: 10px;
+	margin: 10px;
 	padding: 10px;
-	width: 100%;
+	width: 90%;
+}
+#login label {
+	color: black;
+	text-align: left;
+	width: 10%;
 }
 #login button {
 	padding: 10px;
@@ -78,6 +88,7 @@ a:hover {
 }
 #login .fout {
 	color: red;
+	display: none;
 	width: 100%;
 }
 
@@ -99,7 +110,8 @@ a:hover {
 #cams button,
 #presets button,
 #move button,
-#camreboot {
+#camreboot,
+#user button {
 	background-color: black;
 	border-radius: 5px;
 	border: solid 1px #EEE;
@@ -207,6 +219,33 @@ a:hover {
 	margin: 20px 0;
 }
 
+#user {
+	margin: 20px 0;
+}
+#user .username {
+	padding: 10px 0;
+}
+#user .buttons button {
+	width: 40%;
+}
+#user .form {
+	display: none;
+	padding: 0 20px;
+	max-width: 100%;
+}
+#user .form div {
+	display: flex;
+	margin: 10px 0;
+}
+#user .form label {
+	align-self: center;
+	width: 10%;
+}
+#user .form input {
+	padding: 10px;
+	width: 90%;
+}
+
 /*
  * DESKTOP MODE
  */
@@ -234,7 +273,8 @@ a:hover {
 	}
 	#presets,
 	#move, 
-	#footer {
+	#footer,
+	#user {
 		clear: right;
 		float: right;
 		width: 25%;

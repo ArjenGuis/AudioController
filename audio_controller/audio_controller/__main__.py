@@ -20,7 +20,7 @@ from .handlers import handlers
 from . import stream
 from . import itec
 from . import controller
-from . import utils
+from . import user
 from . import gpio
 
 here = Path(os.path.dirname(__file__)).resolve()
@@ -33,7 +33,7 @@ def make_app():
     settings = dict(
         debug=False,
         autoreload=False,
-        cookie_secret=utils.get_cookie_secret(),
+        cookie_secret=user.get_cookie_secret(),
         template_path=str(template_dir),
     )
 
@@ -143,5 +143,5 @@ if __name__ == "__main__":
     stream.test()
     itec.test()
     settings.test()
-    utils.test()
+    user.test()
     main()

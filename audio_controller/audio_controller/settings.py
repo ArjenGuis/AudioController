@@ -4,8 +4,9 @@ from typing import List
 from pathlib import Path
 import pickle
 from dataclasses import dataclass, field, asdict
+import hashlib
 
-from . import fonts, camera
+from . import fonts, camera, user
 
 #
 # Classes and default settings
@@ -171,6 +172,7 @@ sources: List[Source] = []
 destinations: List[Destination] = []
 psalmbord = Psalmbord()
 cameras: List[camera.Camera] = []
+users: List[user.User] = []
 
 #
 # Save and load
@@ -238,9 +240,11 @@ def use_from_store(store: dict):
     sources.clear()
     destinations.clear()
     cameras.clear()
+    users.clear()
     for obj in store['sources']: sources.append(Source(**obj))
     for obj in store['destinations']: destinations.append(Destination(**obj))
     for obj in store["cameras"]: cameras.append(camera.Camera.from_dict(obj))
+    for obj in store["users"]: users.append(user.User(**obj))
     psalmbord.__init__(**store['psalmbord'])
 
 
@@ -267,6 +271,7 @@ def save():
             'destinations': [asdict(obj) for obj in destinations],
             'psalmbord': asdict(psalmbord),
             'cameras': [obj.to_dict() for obj in cameras],
+            'users': [asdict(obj) for obj in users],
         }
         f.write(pickle.dumps(store))
 
@@ -279,6 +284,7 @@ def restore():
         'destinations': [asdict(obj) for obj in default_destinations()],
         'psalmbord': asdict(default_psalmbord()),
         'cameras': [obj.to_dict() for obj in camera.default_cameras()],
+        'users': [asdict(obj) for obj in user.default_users()],
     }
     use_from_store(store)
     save()
@@ -433,6 +439,19 @@ def validate_camera_attribute(name: str, value):
         return None
 
 
+def validate_user_attribute(name: str, value):
+    """ Validate value for attribute with name of a User object.
+    Return value, or adjusted value, or None if it is not valid. """
+    try:
+        if name == 'username':
+            return value[0:50]  # max 50 characters
+        elif name == 'password':
+            return value[0:50]  # max 50 characters
+        return value
+    except:
+        return None
+
+
 def validate_psalmbord(obj: Psalmbord):
     """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
     try:
@@ -576,6 +595,36 @@ def update_cameras(new_cameras: List[dict]):
             new_list.append(cam)
 
         cameras[:] = new_list
+        save()
+    except Exception:
+        print(traceback.format_exc())
+        raise
+
+def update_users(new_users: List[dict]):
+    try:
+        new_list = []
+
+        for i, obj in enumerate(new_users):
+            usr = user.User(**obj)
+
+            try:
+                setPassword = usr.password != users[i].password
+                # password is changed
+            except IndexError:
+                setPassword = True
+                # password is new
+
+            if setPassword:
+                usr.password = validate_user_attribute("password", usr.password)
+                usr.password = user.encryptPassword(usr.password)
+            
+            usr.username = validate_user_attribute("username", usr.username)
+            usr.admin = usr.admin or usr.admin == "True"
+            usr.camera = usr.camera or usr.camera == "True"
+
+            new_list.append(usr)
+
+        users[:] = new_list
         save()
     except Exception:
         print(traceback.format_exc())

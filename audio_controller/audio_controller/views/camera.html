@@ -21,6 +21,19 @@
 <body>
     <h1>{{title}}</h1>
     
+    <div id="login">
+        <p class="fout">Login is onjuist.</p>
+        <div>
+            <label for="current-username"><span class="fas fa-user"></span></label>
+            <input type="text" name="username" id="current-username" autocomplete="current-username" required>
+        </div>
+        <div>
+            <label for="current-password"><span class="fas fa-key"></span></label>
+            <input type="password" name="password" id="current-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Inloggen</button>
+    </div>
+    
     <div id="cams"><ul></ul></div>
 
     <div id="live">
@@ -61,6 +74,25 @@
         <div class="reboot"><button id="camreboot">Herstarten</button></div>
         <div><label><input type="checkbox" name="voice" value="1" class="toggleVoice" /> Meeluisteren in deze app</label></div>
         <div><a href="#" class="caminstellingen" target="_blank">Camera instellingen &raquo;</a></div>
+    </div>
+
+    <div id="user">
+        <div class="username"></div>
+        <div class="buttons">
+            <button class="change">Wijzigen</button>
+            <button class="logout">Uitloggen</button>
+        </div>
+        <div class="form">
+            <div>
+                <label for="current-username"><span class="fas fa-user"></span></label>
+                <input type="text" name="username" id="current-username" autocomplete="current-username" required>
+            </div>
+            <div>
+                <label for="current-password"><span class="fas fa-key"></span></label>
+                <input type="password" name="password" id="current-password" autocomplete="current-password" required>
+            </div>
+            <button type="submit">Wijzigen</button>
+        </div>
     </div>
 
     <script src="/static/js/wfs.js"></script>

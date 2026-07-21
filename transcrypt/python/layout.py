@@ -148,7 +148,10 @@ async def create_main_menu():
             MenuItem().set_title("Camera").set_page(page_camera.Page())
         )
     main_menu.append(MenuItem().set_title("Instellingen").set_page(page_admin.Page()))
-    main_menu.append(logout_button())
+
+    login = await utils.post(utils.get_url('login/login_required'), {})
+    if login['login_required']:
+        main_menu.append(logout_button())
 
 
 async def login_and_view():
@@ -190,7 +193,8 @@ async def login():
                     logged_in = True
                     dialogs.dialog_login.hide()
                     break
-            # dialogs.dialog_login.show_login_failed()
+                else:
+                    dialogs.dialog_login.show_login_failed(r['error'])
         except:
             await utils.sleep(0.1)
 

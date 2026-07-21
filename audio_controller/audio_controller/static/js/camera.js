@@ -3,36 +3,97 @@ $(function() {
 	var $cameras = null;
 	var $wfs = new Wfs();
 
-	$.ajax({
-		url: "/camera/getCameras",
-		type: "POST",
-		contentType: "application/json",
-		dataType: 'json',
-		success: function($response){
-			if( $response.success ){
-				$('#cams ul').empty();
-				$cameras = $response.cameras;
+	getLogin();
 
-				$index = 0;
-				for(let $item of $cameras){
-					$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
-					$index++;
+	/*
+	* get login
+	*/
+	function getLogin(){
+		$.ajax({
+			url: "/login/login",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			success: function($response){
+				if( $response.success ){
+					$('#login').hide();
+
+					setUsername( $response.username );
+
+					getCameras();
+				} else {
+					$('#login').show();
+					$('#cams, #presets, #live, #move, #footer, #user').hide();
+
+					$('#login button').click( function(){
+						$.ajax({
+							url: "/login/login",
+							type: "POST",
+							contentType: "application/json",
+							dataType: 'json',
+							data: JSON.stringify({
+								username: $('#login #current-username').val(),
+								password: $('#login #current-password').val()
+							}),
+							success: function($response){
+								if( $response.success ){
+									$('#login').hide();
+									$('#cams, #presets, #live, #move, #footer, #user').show();
+									
+									setUsername( $('#login #current-username').val() );
+									
+									getCameras();
+								} else {
+									$('#login .fout').show();
+								}
+							}
+						});
+					});
 				}
-
-				$('#cams button').on('click', function(){
-					getPresets($(this));
-				});
-
-				// next step: load presets
-				getPresets( $('#cams li:first-child button') );
-				$('#move').show()
-			} else {
-				$('#live video, #move, #presets, #footer').hide();
-				$('#live .alert').html($response.error).show();
 			}
-		}
-	});
+		});
+	}
 
+	function setUsername(username){
+		$('#user .username').html(username)
+		$('#user #current-username').val(username)
+	}
+
+	/*
+	* get cams
+	*/
+	function getCameras(){
+		$.ajax({
+			url: "/camera/getCameras",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			success: function($response){
+				if( $response.success ){
+					$('#cams').show();
+					$('#cams ul').empty();
+					$cameras = $response.cameras;
+
+					$index = 0;
+					for(let $item of $cameras){
+						$('#cams ul').append('<li><button value="'+$index+'"'+($index==0?" class='active'":"")+'>'+$item.name+'</button></li>');
+						$index++;
+					}
+
+					$('#cams button').on('click', function(){
+						getPresets($(this));
+					});
+
+					// next step: load presets
+					getPresets( $('#cams li:first-child button') );
+					$('#move').show()
+				} else {
+					$('#live video, #move, #presets, #footer').hide();
+					$('#live .alert').html($response.error).show();
+				}
+			}
+		});
+	}
 
 	/*
 	* handle cams
@@ -287,4 +348,42 @@ $(function() {
 		stop = setTimeout(moveStop, 75);
 	}
 
+	/*
+	 * user management
+	 */
+	$('#user .change').click( function(){
+		$('#user .buttons').hide();
+		$('#user .form').show();
+	});
+
+	$('#user .buttons .logout').click( function(){
+		$.ajax({
+			url: "/login/logout",
+			type: "POST",
+			success: function(){
+				window.location.reload();
+			}
+		});
+	});
+
+	$('#user .form button').click( function(){
+		$.ajax({
+			url: "/login/setUser",
+			type: "POST",
+			contentType: "application/json",
+			dataType: 'json',
+			data: JSON.stringify({
+				username: $('#user .form #current-username').val(),
+				password: $('#user .form #current-password').val()
+			}),
+			success: function($response){
+				if( $response.success ){
+					$('#user .form').hide();
+					$('#user .buttons').show();
+				} else {
+					alert($response.error);
+				}
+			}
+		});
+	});
 });

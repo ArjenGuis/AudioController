@@ -117,7 +117,10 @@ class DialogLogin(Dialog):
         self.input_username = E('input')
         self.input_password = E('input').attr('type', 'password')
 
+        self.alert = E('div').attr('class','alert alert-danger').attr('style','display:none')
+
         container.append(
+            self.alert,
             E('div').attr('class', 'form-group row').append(
                 E('label').inner_html("Username").attr('class', 'col-sm-3'),
                 self.input_username.attr('class', 'form-control col-sm-8'),
@@ -145,6 +148,9 @@ class DialogLogin(Dialog):
         self.deferred = S.Deferred()
         self.show()
         return self.deferred.promise()
+    
+    def show_login_failed(self, msg):
+        self.alert.inner_html(msg).attr('style','display:block')
 
 
 dialog_login = DialogLogin()

@@ -5,6 +5,8 @@ import string
 import hashlib
 import os, sys
 from pathlib import Path
+from dataclasses import dataclass, field, asdict, is_dataclass
+
 
 
 # file to save usernames and passwords
@@ -17,6 +19,13 @@ for file in [file_users, file_cookie]:
         with open(file, 'w'):
             pass
 
+@dataclass
+class User:
+    username: str
+    password: str
+    admin: bool = False
+    camera: bool = False
+
 
 def clear_users():
     with open(file_users, 'w') as f:
@@ -25,14 +34,14 @@ def clear_users():
 
 def add_user(username: str, password: str):
     assert ";" not in username
-    pw = hashlib.blake2b(password.encode()).hexdigest()
+    pw = encryptPassword(password)
     line = f"{username};{pw}\n"
     with open(file_users, 'a') as f:
         f.write(line)
 
 
 def check_user(username: str, password: str):
-    pw = hashlib.blake2b(password.encode()).hexdigest()
+    pw = encryptPassword(password)
     with open(file_users, 'r') as f:
         lines = f.readlines()
     for line in lines:
@@ -42,6 +51,24 @@ def check_user(username: str, password: str):
             return True
     return False
 
+
+def get_users():
+    users: list[User] = []
+
+    with open(file_users, "r") as f:
+        for line in f:
+            username, password = line.strip().split(";")
+            users.append(
+                User(
+                    username=username,
+                    password=password
+                )
+            )
+
+    return users
+
+def encryptPassword(password):
+    return hashlib.blake2b(password.encode()).hexdigest()
 
 def get_cookie_secret():
     with open(file_cookie, 'r') as f:
@@ -55,6 +82,23 @@ def get_cookie_secret():
             line = f"{secret}\n"
             f.write(line)
             return secret
+
+
+def default_users():
+    """ Default users, used as initial and factory defaults """
+    result = []
+
+    # first: import previous users file
+    previous_registered = get_users()
+    for usr in previous_registered:
+        usr.admin = True
+        result.append( usr )
+
+    # else: import default user
+    if len(result) == 0:
+        result.append( User('admin', "admin", True, True) )
+    
+    return result
 
 
 def test():
