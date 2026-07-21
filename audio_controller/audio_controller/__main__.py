@@ -45,7 +45,7 @@ def make_app():
         ("/", handlers.Main),
         ("/login/.*", handlers.Login),
         ("/general/.*", handlers.General),
-        ("/psalmbord", psalmbord.PsalmbordHandler),
+        ("/psalmbord", handlers.Psalmbord),
         ("/camera", handlers.CameraApp),
         ("/camera/.*", handlers.Camera),
         ("/(favicon.ico)", handlers.StaticFileHandler, {"path": str(static_dir)}),

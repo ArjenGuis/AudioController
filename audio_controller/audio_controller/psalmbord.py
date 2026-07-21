@@ -117,39 +117,3 @@ class Psalmbord:
         return self
 
 
-class PsalmbordHandler(tornado.web.RequestHandler):
-    def body_to_json(self):
-        body = self.request.body
-        if not body:
-            body = b"{}"
-        return json.loads(body)
-    
-    def get_css(self):
-        fs = settings.pb.fontsize
-        fw = settings.pb.fontweight
-        return f"html {{ --regels: {fs}; }} \n .font_weight {{ font-weight: {fw}; }}"
-
-    def get(self):
-        if settings.settings.enable_psalmbord:
-            self.render("psalmbord.html", css=self.get_css())
-        else:
-            html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
-            self.write(html)
-
-    def post(self):
-        if settings.settings.enable_psalmbord:
-            kwargs = self.body_to_json()
-            if kwargs.get("html"):
-                result = {
-                    "html": settings.pb.psalmbord_as_html(),
-                    "css": self.get_css(),
-                    "active": settings.pb.active,
-                    "refreshrate": settings.pb.refreshrate
-                }
-                self.write(dumps(result))
-            else:
-                self.write(dumps(asdict(settings.pb)))
-        else:
-            self.write(dumps(asdict(psalmbord.Psalmbord())))
-
-
