@@ -37,14 +37,11 @@
         if (hasFailed) {
             location.reload()
         } else {
+            interval = result["refreshrate"]*1000 // milliseconds
             css.html(result["css"])
-            if (result["active"]){
-                container.html(result["html"])
-            } else {
-                container.empty()
-            }
+            container.html(result["html"])
             if(firstAlignment){
-                setTimeout(alignment, 100 )
+                setTimeout(alignment, 200 )
             } else {
                 alignment()
             }
@@ -95,6 +92,9 @@
 		if( screen.width/screen.height == 9/19.5 ){
             // samsung s23, 1080/2340
 			$('.container').addClass('s9_195')
+		} else if( Math.round((screen.width/screen.height)*100)/100 == 9/20 ){
+            // samsung a23, 1080/2408
+			$('.container').addClass('s9_20')
 		} else if( screen.width/screen.height == 10/16 ){
 			$('.container').addClass('s10_16')
 		} else {

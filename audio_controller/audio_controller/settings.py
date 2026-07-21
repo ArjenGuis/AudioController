@@ -6,7 +6,7 @@ import pickle
 from dataclasses import dataclass, field, asdict
 import hashlib
 
-from . import fonts, camera, user
+from . import fonts, camera, user, psalmbord
 
 #
 # Classes and default settings
@@ -54,59 +54,6 @@ class Destination:
     id: int = 0
 
 
-default_fontfamily = fonts.validate_font_name("Samsung", True)
-default_fontsize = fonts.validate_font_size(8, True)
-default_fontweight = fonts.validate_font_weight(400, True)
-
-
-@dataclass
-class Psalmbord:
-    title: str = ""
-    regels: List[dict] = field(default_factory=lambda: [])
-    fontfamily: str = default_fontfamily
-    fontsize: float = default_fontsize
-    fontweight: int = default_fontweight
-    active: bool = True # if False, show empty screen (not to confuse with enable_psalmbord)
-
-
-def psalmbord_as_html() -> str:
-    """ Create a html string to display the psalmbord in the browser """
-    # title
-    if psalmbord.title.strip() != "":
-        content = f"<div class='title font_weight {fonts.fonts[psalmbord.fontfamily]}'>{psalmbord.title}</div>"
-    else:
-        content = ""
-    
-    # regels
-    for regel in psalmbord.regels:
-        content += f"<div class='regel font_weight {fonts.fonts[psalmbord.fontfamily]}'>"
-
-        col = regel['text'].strip().split(":")
-        if len(col) > 1:
-            # regel with three columns
-            content += "<span class='col1'>"
-            for col1 in col[0].split(" "):
-                if col1.strip() != "":
-                    content += f"<span>{col1}</span>"
-            content += "</span>"
-
-            content += "<span class='col2'>:</span>"
-
-            content += "<span class='col3'>"
-            for col3 in col[1].split(" "):
-                if col3.strip() != "":
-                    content += f"<span>{col3}</span>"
-            content += "</span>"
-        else:
-            # regel without columns
-            """ replace optional ";" with ":" to prevent splitting and alignment """
-            regel_text = regel['text'].replace(";",":")
-            content += f"<span class='no-col'>{regel_text}</span>"
-        
-        content += "</div>\n"
-    return content
-
-
 def default_sources():
     """ Default sources, used as initial and factory defaults """
     result = [
@@ -139,27 +86,6 @@ def default_destinations():
     return result
 
 
-def default_psalmbord():
-    """ Default Psalmbord, used as initial and factory defaults """
-    result = Psalmbord()
-    result.title = "Liturgie"
-    result.regels = [{'text': txt} for txt in [
-        "Ps 11 : 1, 3",
-        "Ps 22 : 2, 3",
-        "Exodus 20 : 1-17",
-        "Ps 33 : 1, 2",
-        "Ps 44 : 2, 3",
-        "Ps 55 : 1, 2",
-        "Ps 66 : 2, 3",
-        "H.C. Zondag 34",
-    ]]
-    result.fontfamily = default_fontfamily
-    result.fontsize = default_fontsize
-    result.fontweight = default_fontweight
-    result.active = True
-    return result
-
-
 #
 # Stores / databases
 #
@@ -170,7 +96,7 @@ file = Path.home() / ".audio_controller_settings.pickle"
 settings = Settings()
 sources: List[Source] = []
 destinations: List[Destination] = []
-psalmbord = Psalmbord()
+pb = psalmbord.Psalmbord()
 cameras: List[camera.Camera] = []
 users: List[user.User] = []
 
@@ -203,13 +129,13 @@ def upgrade(store: dict):
     if store['settings']['version'] == 5:
         store['settings']['version'] = 6
         store['settings']['enable_psalmbord'] = False
-        store['psalmbord'] = asdict(default_psalmbord())
+        store['psalmbord'] = asdict(psalmbord.Psalmbord())
 
     if store['settings']['version'] == 6:
         store['settings']['version'] = 7
-        store['psalmbord']['fontfamily'] = default_fontfamily
-        store['psalmbord']['fontsize'] = default_fontsize
-        store['psalmbord']['fontweight'] = default_fontweight
+        store['psalmbord']['fontfamily'] = psalmbord.default_fontfamily
+        store['psalmbord']['fontsize'] = psalmbord.default_fontsize
+        store['psalmbord']['fontweight'] = psalmbord.default_fontweight
 
     if store['settings']['version'] == 7:
         store['settings']['version'] = 8
@@ -227,6 +153,13 @@ def upgrade(store: dict):
     if store['settings']['version'] == 9:
         store['settings']['version'] = 10
         store['settings']['enable_camera'] = False
+        store['psalmbord']['active'] = 1
+        store['psalmbord']['screens'] = [
+            psalmbord.PsalmbordScreen(index=i, text=text, size=8)
+            for i, text in enumerate(psalmbord.default_screens)
+        ]
+        store['psalmbord']['refreshrate'] = 10
+    
     #
     # future upgrades will be placed here
     #
@@ -245,7 +178,7 @@ def use_from_store(store: dict):
     for obj in store['destinations']: destinations.append(Destination(**obj))
     for obj in store["cameras"]: cameras.append(camera.Camera.from_dict(obj))
     for obj in store["users"]: users.append(user.User(**obj))
-    psalmbord.__init__(**store['psalmbord'])
+    pb.__init__(**store['psalmbord'])
 
 
 def load():
@@ -269,7 +202,7 @@ def save():
             'settings': asdict(settings),
             'sources': [asdict(obj) for obj in sources],
             'destinations': [asdict(obj) for obj in destinations],
-            'psalmbord': asdict(psalmbord),
+            'psalmbord': asdict(pb),
             'cameras': [obj.to_dict() for obj in cameras],
             'users': [asdict(obj) for obj in users],
         }
@@ -282,7 +215,7 @@ def restore():
         'settings': asdict(Settings()),
         'sources': [asdict(obj) for obj in default_sources()],
         'destinations': [asdict(obj) for obj in default_destinations()],
-        'psalmbord': asdict(default_psalmbord()),
+        'psalmbord': asdict(psalmbord.Psalmbord()),
         'cameras': [obj.to_dict() for obj in camera.default_cameras()],
         'users': [asdict(obj) for obj in user.default_users()],
     }
@@ -451,37 +384,6 @@ def validate_user_attribute(name: str, value):
     except:
         return None
 
-
-def validate_psalmbord(obj: Psalmbord):
-    """ Return psalmbord if it is correct, None otherwise. Possibly correct values. """
-    try:
-        obj.title = obj.title[:100]  # max 100 characters
-        if len(obj.regels) > 50:  # max 50 regels
-            return None
-        default_regel_keys = sorted(list(default_psalmbord().regels[0].keys()))
-
-        for regel in obj.regels:
-            if not sorted(list(regel.keys())) == default_regel_keys:
-                return None
-            regel['text'] = regel['text'][0:100]  # max 100 characters
-
-        obj.fontfamily = str(obj.fontfamily)
-        if not fonts.validate_font_name(obj.fontfamily):
-            return None
-        obj.fontsize = float(obj.fontsize)
-        if not fonts.validate_font_size(obj.fontsize):
-            return None
-        obj.fontweight = int(obj.fontweight)
-        if not fonts.validate_font_weight(obj.fontweight):
-            return None
-
-        return obj
-    except:
-        return None
-
-
-assert validate_psalmbord(default_psalmbord()), "Default psalmbord is not valid"
-
 #
 # Updates
 #
@@ -561,18 +463,6 @@ def update_destinations(new_destinations: List[dict]):
     except:
         pass
 
-
-def update_psalmbord(title: str, regels: List[dict], fontfamily, fontsize, fontweight, active: bool):
-    temp = Psalmbord(title, regels, fontfamily, fontsize, fontweight, active)
-    temp = validate_psalmbord(temp)
-    if temp:
-        psalmbord.title = temp.title
-        psalmbord.regels = temp.regels
-        psalmbord.fontfamily = temp.fontfamily
-        psalmbord.fontsize = temp.fontsize
-        psalmbord.fontweight = temp.fontweight
-        psalmbord.active = temp.active
-        save()
 
 def update_cameras(new_cameras: List[dict]):
     try:

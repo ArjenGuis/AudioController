@@ -22,6 +22,7 @@ from . import itec
 from . import controller
 from . import user
 from . import gpio
+from . import psalmbord
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -44,7 +45,7 @@ def make_app():
         ("/", handlers.Main),
         ("/login/.*", handlers.Login),
         ("/general/.*", handlers.General),
-        ("/psalmbord", handlers.Psalmbord),
+        ("/psalmbord", psalmbord.PsalmbordHandler),
         ("/camera", handlers.CameraApp),
         ("/camera/.*", handlers.Camera),
         ("/(favicon.ico)", handlers.StaticFileHandler, {"path": str(static_dir)}),

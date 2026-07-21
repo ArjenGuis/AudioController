@@ -184,7 +184,7 @@ input:checked + .slider:before {
 /* End - Toggle checkbox */
 
 /*
- * CAMS
+ * Camera - CAMS
  */
 #cams {
   margin-bottom: 30px;
@@ -207,7 +207,7 @@ input:checked + .slider:before {
 }
 
 /*
- * PRESETS
+ * Camera - PRESETS
  */
 #presets ul {
 	display: flex;
@@ -241,7 +241,7 @@ input:checked + .slider:before {
 }
 
 /*
- * MOVE 
+ * Camera - MOVE 
  */
 #move .ptzmove {
 	display: inline-block;
@@ -318,4 +318,31 @@ input:checked + .slider:before {
 #move.hidden,
 #footer.hidden {
   visibility: hidden;
+}
+
+/*
+ * Psalmbord
+ */
+div.screen {
+  border: solid 1px var(--primary);
+  border-radius: 5px;
+  margin: 10px;
+  min-height: 100%;
+  min-width: 232px;
+}
+div.screen input {
+  width: 20px; 
+  display: inline-block; 
+  vertical-align: middle; 
+  margin-right: 10px;
+}
+div.screen textarea {
+  height: 360px;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.psalmbord_heading {
+  font-weight: bold;
+  margin: 1rem 0 0;
 }
