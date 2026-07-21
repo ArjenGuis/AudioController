@@ -116,6 +116,10 @@ body {
 .container.s9_195 .regel {
     font-size: calc(100vh / (var(--regels) * 1.4 + 3.5));
 }
+.container.s9_20 .title,
+.container.s9_20 .regel {
+    font-size: calc(100vh / (var(--regels) * 1.5 + 3.5));
+}
 .container.s10_16 .title,
 .container.s10_16 .regel {
     font-size: calc(100vh / (var(--regels) * 1.2 + 3.5));

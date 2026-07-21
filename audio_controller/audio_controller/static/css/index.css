@@ -182,3 +182,27 @@ input:checked + .slider:before {
 } 
 
 /* End - Toggle checkbox */
+
+div.screen {
+  border: solid 1px var(--primary);
+  border-radius: 5px;
+  margin: 10px;
+  min-height: 100%;
+  min-width: 232px;
+}
+div.screen input {
+  width: 20px; 
+  display: inline-block; 
+  vertical-align: middle; 
+  margin-right: 10px;
+}
+div.screen textarea {
+  height: 360px;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.psalmbord_heading {
+  font-weight: bold;
+  margin: 1rem 0 0;
+}
