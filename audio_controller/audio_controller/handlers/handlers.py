@@ -9,7 +9,7 @@ import time
 import json
 from json import dumps
 from pathlib import Path
-import traceback
+#import traceback
 from dataclasses import asdict
 import asyncio
 from copy import deepcopy
@@ -429,7 +429,7 @@ class Camera(BaseHandler):
                 result = {
                     "success": False,
                     #"error": str(err),
-                    "traceback": traceback.format_exc()
+                    #"traceback": traceback.format_exc()
                 }
             self.write(dumps(result))
             return
