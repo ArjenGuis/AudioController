@@ -86,11 +86,18 @@ def get_cookie_secret():
 
 def default_users():
     """ Default users, used as initial and factory defaults """
-    result = [
-        User('admin', "admin", True, True),
-    ]
-    for i, obj in enumerate(result):
-        obj.id = i
+    result = []
+
+    # first: import previous users file
+    previous_registered = get_users()
+    for usr in previous_registered:
+        usr.admin = True
+        result.append( usr )
+
+    # else: import default user
+    if len(result) == 0:
+        result.append( User('admin', "admin", True, True) )
+    
     return result
 
 
