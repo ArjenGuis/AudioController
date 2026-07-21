@@ -66,11 +66,21 @@ a:hover {
 	padding: 10px;
 	text-align: center;
 }
+#login div {
+	display: flex;
+	width: 100%;
+}
+#login label,
 #login input {
 	font-size: inherit;
-	margin-bottom: 10px;
+	margin: 10px;
 	padding: 10px;
-	width: 100%;
+	width: 67%;
+}
+#login label {
+	color: black;
+	text-align: left;
+	width: 33%;
 }
 #login button {
 	padding: 10px;
@@ -78,6 +88,7 @@ a:hover {
 }
 #login .fout {
 	color: red;
+	display: none;
 	width: 100%;
 }
 

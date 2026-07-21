@@ -592,7 +592,7 @@ class Users(AccordionItem):
         plist.add_column("username", "Naam").item_to_element(text_element.bind(None, "username"))
         plist.add_column("password", "Wachtwoord").item_to_element(password_element.bind(None, "password"))
         plist.add_column("admin", "Admin").item_to_element(checkbox_element.bind(None, "admin"))
-        plist.add_column("camera", "Camera").item_to_element(checkbox_element.bind(None, "camera"))
+        plist.add_column("camera", "Camera app").item_to_element(checkbox_element.bind(None, "camera"))
 
         async def delete_item(item):
             # todo

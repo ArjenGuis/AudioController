@@ -21,6 +21,19 @@
 <body>
     <h1>{{title}}</h1>
     
+    <div id="login">
+        <p class="fout">Login is onjuist.</p>
+        <div>
+            <label for="current-username">Naam:</label>
+            <input type="text" name="username" id="current-username" autocomplete="current-username" required>
+        </div>
+        <div>
+            <label for="current-password">Wachtwoord:</label>
+            <input type="password" name="password" id="current-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Inloggen</button>
+    </div>
+    
     <div id="cams"><ul></ul></div>
 
     <div id="live">
