@@ -447,7 +447,7 @@ class Cameras(AccordionItem):
 
         def password_element(attr, item):
             r = E("input").attr("type", "password")
-            r.element.value = item[attr]
+            #r.element.value = item[attr]
 
             def onchange(evt):
                 item[attr] = r.element.value

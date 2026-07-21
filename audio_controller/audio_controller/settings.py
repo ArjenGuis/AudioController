@@ -608,7 +608,14 @@ def update_users(new_users: List[dict]):
             usr = user.User(**obj)
             usr.id = i
 
-            if usr.password != users[i].password:
+            try:
+                setPassword = usr.password != users[i].password
+                # password is changed
+            except IndexError:
+                setPassword = True
+                # password is new
+
+            if setPassword:
                 usr.password = validate_user_attribute("password", usr.password)
                 usr.password = user.encryptPassword(usr.password)
             
