@@ -337,7 +337,7 @@ class General(BaseHandler):
 class CameraApp(tornado.web.RequestHandler):
     def get(self):
         if settings.settings.enable_psalmbord:
-            font = settings.psalmbord.fontfamily
+            font = settings.pb.fontfamily
         else:
             font = 'Segoe UI'
 
