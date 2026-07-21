@@ -72,6 +72,7 @@ python -m pip install pyserial
 python -m pip install tornado
 python -m pip install python-socketio
 python -m pip install python-decouple
+python -m pip install onvif-zeep
 ```
 
 Optional:
@@ -218,9 +219,9 @@ ssh pi@${PI_IP}
 cd ~/AudioController/audio_controller/audio_controller/
 sudo -s
 python3
-import utils
-utils.add_user("<username>", "<password>")
-assert utils.check_user("<username>", "<password>"), "Configuration failed"
+import user
+user.add_user("<username>", "<password>")
+assert user.check_user("<username>", "<password>"), "Configuration failed"
 exit()
 ```
 

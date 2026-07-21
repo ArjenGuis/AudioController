@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <title>Camera {{title}}</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"  content="connect-src * 'unsafe-inline';">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel='stylesheet' href="/static/js/fontawesome-free-5.13.1-web/css/all.css">
+    <link rel='stylesheet' href="/static/css/camera.css">
+	<link href="/static/pictures/icons8-ptz-camera-color-16.png" rel="icon" type="image/png" sizes="16x16">
+	<link href="/static/pictures/icons8-ptz-camera-color-32.png" rel="icon" type="image/png" sizes="32x32">
+	<link href="/static/pictures/icons8-ptz-camera-color-96.png" rel="icon" type="image/png" sizes="96x96">
+    <script src="/static/js/jquery-3.3.1.min.js"></script>
+    <style type="text/css">
+        body {
+            font-family: {{font}};
+        }
+    </style>
+</head>
+
+<body>
+    <h1>{{title}}</h1>
+    
+    <div id="login">
+        <p class="fout">Login is onjuist.</p>
+        <div>
+            <label for="current-username"><span class="fas fa-user"></span></label>
+            <input type="text" name="username" id="current-username" autocomplete="current-username" required>
+        </div>
+        <div>
+            <label for="current-password"><span class="fas fa-key"></span></label>
+            <input type="password" name="password" id="current-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Inloggen</button>
+    </div>
+    
+    <div id="cams"><ul></ul></div>
+
+    <div id="live">
+        <div class="alert alert-danger">Camera is niet beschikbaar.</div>
+        <div class="video"><video id="preview" autoplay muted playsinline width="100%"></video></div>
+    </div>
+
+    <div id="presets">
+        <ul></ul>
+		<p><label><input type="checkbox" name="labels" value="1" class="toggleLabels" /> Labels tonen</label></p>
+    </div>
+
+    <div id="move">
+        <div>
+            <button id="leftup" class="ptzmove"><span class="fas fa-arrow-left" style="rotate: 45deg"></span></button>
+            <button id="up" class="ptzmove"><span class="fas fa-arrow-up"></span></button>
+            <button id="rightup" class="ptzmove"><span class="fas fa-arrow-right" style="rotate: -45deg"></span></button>
+        </div>
+        <div>
+            <button id="left" class="ptzmove"><span class="fas fa-arrow-left"></span></button>
+            <button id="stop" class="ptzstop"><span class="fas fa-stop"></span></button>
+            <button id="right" class="ptzmove"><span class="fas fa-arrow-right"></span></button>
+        </div>
+        <div>
+            <button id="leftdown" class="ptzmove"><span class="fas fa-arrow-left" style="rotate: -45deg"></span></button>
+            <button id="down" class="ptzmove"><span class="fas fa-arrow-down"></span></button>
+            <button id="rightdown" class="ptzmove"><span class="fas fa-arrow-right" style="rotate: 45deg"></span></button>
+        </div>
+        <div>
+            <button id="zoomdec" class="ptzmove"><span class="fas fa-search-minus"></span></button>
+            <div class="ptzmove"></div>
+            <button id="zoomadd" class="ptzmove"><span class="fas fa-search-plus"></span></button>
+        </div>
+    </div>
+
+    <div id="footer">
+        <div class="streampublish"><label><input type="checkbox" name="streampublish" value="1"><span> Live uitzenden</span></label></div>
+        <div class="reboot"><button id="camreboot">Herstarten</button></div>
+        <div><label><input type="checkbox" name="voice" value="1" class="toggleVoice" /> Meeluisteren in deze app</label></div>
+        <div><a href="#" class="caminstellingen" target="_blank">Camera instellingen &raquo;</a></div>
+    </div>
+
+    <div id="user">
+        <div class="username"></div>
+        <div class="buttons">
+            <button class="change">Wijzigen</button>
+            <button class="logout">Uitloggen</button>
+        </div>
+        <div class="form">
+            <div>
+                <label for="current-username"><span class="fas fa-user"></span></label>
+                <input type="text" name="username" id="current-username" autocomplete="current-username" required>
+            </div>
+            <div>
+                <label for="current-password"><span class="fas fa-key"></span></label>
+                <input type="password" name="password" id="current-password" autocomplete="current-password" required>
+            </div>
+            <button type="submit">Wijzigen</button>
+        </div>
+    </div>
+
+    <script src="/static/js/wfs.js"></script>
+    <script src="/static/js/camera.js"></script>
+</body>
+</html>

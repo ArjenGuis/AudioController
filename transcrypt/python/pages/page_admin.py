@@ -50,6 +50,7 @@ class Settings(AccordionItem):
         input_auto_switch = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_timeout = E("input").attr("class", "form-control").attr("type", "number")
         input_enable_psalmbord = E("input").attr("class", "form-control").attr("type", "checkbox")
+        input_enable_camera = E("input").attr("class", "form-control").attr("type", "checkbox")
         input_enable_logging = E("input").attr("class", "form-control").attr("type", "checkbox")
 
         width_1 = "col-sm-5"
@@ -126,6 +127,14 @@ class Settings(AccordionItem):
             E("div")
             .attr("class", "form-group row")
             .append(
+                E("label")
+                .attr("class", "{} col-form-label".format(width_1))
+                .inner_html("Camera functie inschakelen"),
+                E("div").attr("class", "{}".format(width_2)).append(input_enable_camera),
+            ),
+            E("div")
+            .attr("class", "form-group row")
+            .append(
                 E("label").attr("class", "{} col-form-label".format(width_1)).inner_html("Logging inschakelen"),
                 E("div").attr("class", "{}".format(width_2)).append(input_enable_logging),
             ),
@@ -143,6 +152,7 @@ class Settings(AccordionItem):
                 "enable_option_auto_switch": input_auto_switch.element.checked,
                 "timeout_auto_switch": input_timeout.element.value,
                 "enable_psalmbord": input_enable_psalmbord.element.checked,
+                "enable_camera": input_enable_camera.element.checked,
                 "enable_logging": input_enable_logging.element.checked,
             }
 
@@ -157,6 +167,7 @@ class Settings(AccordionItem):
             input_auto_switch.element.checked = settings["enable_option_auto_switch"]
             input_timeout.element.value = settings["timeout_auto_switch"]
             input_enable_psalmbord.element.checked = settings["enable_psalmbord"]
+            input_enable_camera.element.checked = settings["enable_camera"]
             input_enable_logging.element.checked = settings["enable_logging"]
 
         async def initialize():
@@ -181,6 +192,7 @@ class Settings(AccordionItem):
         input_auto_switch.element.onchange = onchange
         input_timeout.element.onchange = onchange
         input_enable_psalmbord.element.onchange = onchange
+        input_enable_camera.element.onchange = onchange
         input_enable_logging.element.onchange = onchange
 
         self.refresh = initialize
@@ -392,6 +404,225 @@ class Destinations(AccordionItem):
         self.refresh = initialize
 
 
+def camera(name, url_intern, url_extern, port_http, port_onvif, port_ws, username, password):
+    return {
+        "name": name, 
+        "url_intern": url_intern, 
+        "url_extern": url_extern, 
+        "port_http": port_http, 
+        "port_onvif": port_onvif, 
+        "port_ws": port_ws, 
+        "username": username, 
+        "password": password
+    }
+
+
+class Cameras(AccordionItem):
+    def __init__(self):
+        super().__init__("Camera's")
+        plist = PagedList(self.body.element, "").hide_count().disable_pagination()
+        plist.get_styling().table_class("table borderless")
+
+        def text_element(attr, item):
+            r = E("input").attr("type", "text")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def number_element(attr, item):
+            r = E("input").attr("type", "number")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def password_element(attr, item):
+            r = E("input").attr("type", "password")
+            #r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def checkbox_element(attr, item):
+            r = E("input").attr("type", "checkbox")
+            r.element.checked = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.checked
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        plist.add_column("name", "Naam").item_to_element(text_element.bind(None, "name"))
+        plist.add_column("url_intern", "IP").item_to_element(text_element.bind(None, "url_intern"))
+        plist.add_column("url_extern", "URL").item_to_element(text_element.bind(None, "url_extern"))
+        plist.add_column("port_http", ":HTTP").item_to_element(number_element.bind(None, "port_http"))
+        plist.add_column("port_onvif", ":ONVIF").item_to_element(number_element.bind(None, "port_onvif"))
+        plist.add_column("port_ws", ":WS").item_to_element(number_element.bind(None, "port_ws"))
+        plist.add_column("username", "Gebruikersnaam").item_to_element(text_element.bind(None, "username"))
+        plist.add_column("password", "Wachtwoord").item_to_element(password_element.bind(None, "password"))
+
+        async def delete_item(item):
+            self.cameras.remove(item)
+            self.cameras = await utils.post(
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        async def save_changes():
+            self.cameras = await utils.post(
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        plist.add_button("delete", "", "btn btn-danger btn-sm").use_element(
+            lambda item: E("i").attr("class", "fas fa-trash-alt")
+        ).onclick(delete_item)
+
+        async def change_order(up: bool, item):
+            i = self.cameras.index(item)
+            if not -1 < i < len(self.cameras):
+                return
+            j = i - 1 if up else i + 1
+            j = max(0, min(j, len(self.cameras) - 1))
+            self.cameras.remove(item)
+            self.cameras.insert(j, item)
+            self.cameras = await utils.post(
+                utils.get_url("camera/setCameras"), {"cameras": self.cameras}
+            )
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        plist.add_button("up", "", "btn btn-primary btn-sm").use_element(
+            lambda item: E("i")
+            .attr("class", "fas fa-sort-up")
+            .attr("style", "font-size: 20px; vertical-align: bottom;")
+        ).onclick(change_order.bind(None, True))
+
+        plist.add_button("down", "", "btn btn-primary btn-sm").use_element(
+            lambda item: E("i")
+            .attr("class", "fas fa-sort-down")
+            .attr("style", "font-size: 20px; vertical-align: bottom;")
+        ).onclick(change_order.bind(None, False))
+
+        def add_item(evt):
+            self.cameras.append(camera("Naam", "192.168.1.1", "website.nl", 80, 2000, 8088, "username", "password"))
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        button_add = E("button").attr("class", "btn btn-primary btn-sm").inner_html("Toevoegen")
+        button_add.element.onclick = add_item
+
+        self.body.append(button_add)
+
+        async def initialize():
+            cameras = await utils.post(utils.get_url("camera/getCameras"), {})
+            if cameras.success:
+                self.cameras = cameras.cameras
+
+            plist.get_server().data = self.cameras
+            plist.refresh()
+
+        self.refresh = initialize
+
+def user(username, password, admin, camera):
+    return {
+        "username": username, 
+        "password": password,
+        "admin": admin,
+        "camera": camera
+    }
+
+class Users(AccordionItem):
+    def __init__(self):
+        super().__init__("Gebruikers")
+
+        plist = PagedList(self.body.element, "").hide_count().disable_pagination()
+        plist.get_styling().table_class("table borderless")
+
+        def text_element(attr, item):
+            r = E("input").attr("type", "text")
+            r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def password_element(attr, item):
+            r = E("input").attr("type", "password")
+            #r.element.value = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.value
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        def checkbox_element(attr, item):
+            r = E("input").attr("type", "checkbox")
+            r.element.checked = item[attr]
+
+            def onchange(evt):
+                item[attr] = r.element.checked
+                save_changes()
+
+            r.element.onchange = onchange
+            return r.element
+
+        plist.add_column("username", "Naam").item_to_element(text_element.bind(None, "username"))
+        plist.add_column("password", "Wachtwoord").item_to_element(password_element.bind(None, "password"))
+        plist.add_column("admin", "Admin").item_to_element(checkbox_element.bind(None, "admin"))
+        plist.add_column("camera", "Camera app").item_to_element(checkbox_element.bind(None, "camera"))
+
+        async def delete_item(item):
+            # todo
+            return
+
+        async def save_changes():
+            self.users = await utils.post(
+                utils.get_url("login/setUsers"), {"users": self.users}
+            )
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        def add_item(evt):
+            self.users.append(user("username", "password"))
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        button_add = E("button").attr("class", "btn btn-primary btn-sm").inner_html("Toevoegen")
+        button_add.element.onclick = add_item
+
+        self.body.append(button_add)
+
+        async def initialize():
+            self.users = await utils.post(utils.get_url("login/getUsers"), {})
+            plist.get_server().data = self.users
+            plist.refresh()
+
+        self.refresh = initialize
+
+
 class TestDebug(AccordionItem):
     def __init__(self):
         super().__init__("Test and debug")
@@ -483,7 +714,7 @@ class Page(ElementWrapper):
     def __init__(self):
         super().__init__(element("div"))
         self.attr("style", "max-width: 1000px;")
-        self.items = [Settings(), Sources(), Destinations(), TestDebug()]
+        self.items = [Settings(), Sources(), Destinations(), Cameras(), Users(), TestDebug()]
         for i in self.items:
             self.append(i)
 

@@ -20,7 +20,7 @@ from .handlers import handlers
 from . import stream
 from . import itec
 from . import controller
-from . import utils
+from . import user
 from . import gpio
 from . import psalmbord
 
@@ -34,7 +34,7 @@ def make_app():
     settings = dict(
         debug=False,
         autoreload=False,
-        cookie_secret=utils.get_cookie_secret(),
+        cookie_secret=user.get_cookie_secret(),
         template_path=str(template_dir),
     )
 
@@ -46,6 +46,8 @@ def make_app():
         ("/login/.*", handlers.Login),
         ("/general/.*", handlers.General),
         ("/psalmbord", psalmbord.PsalmbordHandler),
+        ("/camera", handlers.CameraApp),
+        ("/camera/.*", handlers.Camera),
         ("/(favicon.ico)", handlers.StaticFileHandler, {"path": str(static_dir)}),
         ("/static/(.*)", handlers.StaticFileHandler, {"path": str(static_dir)}),
         ("/websocket/", socketio.get_tornado_handler(sio)),
@@ -142,5 +144,5 @@ if __name__ == "__main__":
     stream.test()
     itec.test()
     settings.test()
-    utils.test()
+    user.test()
     main()
