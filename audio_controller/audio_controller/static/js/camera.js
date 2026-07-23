@@ -89,7 +89,7 @@ $(function() {
 					$('#move').show()
 				} else {
 					$('#live video, #move, #presets, #footer').hide();
-					$('#live .alert').text($response.error).show();
+					$('#live .alert').text($response.error).show();  // niet ingelogd
 				}
 			}
 		});
@@ -172,10 +172,11 @@ $(function() {
 						$('#live .alert').hide();
 					} else {
 						$('#live video, #move, #presets, #footer').hide();
-						$('#live .alert').text($response.error).show();
+						//$('#live .alert').text($response.error).show();
+						$('#live .alert').text("Geen camerabeeld beschikbaar.").show();
 					}
 				} else {
-					console.error('getLive fail: '+$response.error);
+					//console.error('getLive fail: '+$response.error);
 					$('#live video, #move, #presets, #footer').hide();
 				}
 			}
@@ -381,7 +382,8 @@ $(function() {
 					$('#user .form').hide();
 					$('#user .buttons').show();
 				} else {
-					alert($response.error);
+					//alert($response.error);
+					alert("Gegevens niet opgeslagen.");
 				}
 			}
 		});
