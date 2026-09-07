@@ -380,8 +380,11 @@ class Login(BaseHandler):
             users = args.get("users", [])
             try:
                 settings.update_users(users)
+            except ValueError as e:
+                # e.g. duplicate usernames, or a new/renamed user without a password
+                self.write(dumps({"success": False, "error": str(e)}))
+                return
             except Exception:
-                # e.g. duplicate usernames are rejected by update_users
                 self.write(dumps({"success": False, "error": "Ongeldige gebruikerslijst"}))
                 return
             write_users()

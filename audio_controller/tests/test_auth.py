@@ -69,3 +69,35 @@ def test_update_users_survives_non_string_username(tmp_settings_file):
     # review #3: a corrupt (non-str) username must not crash the save with a 500.
     settings.update_users([{"username": 12345, "password": "Sterk!wachtwoord9", "admin": True}])
     assert any(u.username == "12345" for u in settings.users)
+
+
+def test_blank_password_keeps_existing_on_checkbox_toggle(tmp_settings_file):
+    # Guis: the grid re-posts every user with a BLANK password on any field change
+    # (e.g. toggling admin). A blank password must leave the password unchanged.
+    settings.update_users([{"username": "beheer", "password": "Sterk!wachtwoord9",
+                            "admin": False, "camera": True}])
+    settings.update_users([{"username": "beheer", "password": "", "admin": True, "camera": True}])
+    u = settings.users[0]
+    assert u.admin is True                                   # toggle applied
+    assert user.verify_password("Sterk!wachtwoord9", u.password)  # password kept
+    assert not user.verify_password("", u.password)          # NOT emptied
+
+
+def test_blank_password_new_user_is_rejected_not_emptied(tmp_settings_file):
+    # a brand-new user with a blank password must be refused, never stored with an
+    # empty password (which would otherwise let "" log in).
+    import pytest
+    with pytest.raises(ValueError):
+        settings.update_users([{"username": "nieuw", "password": "", "admin": False}])
+
+
+def test_rename_with_blank_password_does_not_empty_it(tmp_settings_file):
+    # renaming a user (username changes) with a blank password must not wipe the
+    # password to an empty hash; refuse instead (the prior can't be matched by name).
+    import pytest
+    settings.update_users([{"username": "beheer", "password": "Sterk!wachtwoord9", "admin": True}])
+    with pytest.raises(ValueError):
+        settings.update_users([{"username": "beheerder", "password": "", "admin": True}])
+    # original account + password untouched after the refused save
+    assert settings.users[0].username == "beheer"
+    assert user.verify_password("Sterk!wachtwoord9", settings.users[0].password)

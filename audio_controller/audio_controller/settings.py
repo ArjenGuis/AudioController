@@ -718,14 +718,18 @@ def update_users(new_users: List[dict]):
             incoming_pw = usr.password
 
             if not incoming_pw or (prior is not None and incoming_pw == prior.password):
-                # blank or unchanged -> keep the stored (already hashed) password
+                # A blank password means "leave the password unchanged": the admin
+                # grid blanks the password field, and the SPA re-posts EVERY user on
+                # any field change (e.g. toggling the admin/camera checkbox), so a
+                # blank password must NEVER change or empty a password. (Guis)
                 if prior is not None:
                     usr.password = prior.password
                     usr.must_change_password = prior.must_change_password
                 else:
-                    # brand-new user without a password: hash whatever was given
-                    usr.password = user.hash_password(validate_user_attribute("password", incoming_pw))
-                    usr.must_change_password = False
+                    # No prior to keep (a brand-new user, or a rename we can't match
+                    # by name): refuse rather than store an empty password. A new or
+                    # renamed account must be given a password.
+                    raise ValueError("een nieuwe of hernoemde gebruiker vereist een wachtwoord")
             else:
                 # a new plaintext password was provided -> salt+hash it
                 usr.password = validate_user_attribute("password", incoming_pw)
