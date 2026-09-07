@@ -90,3 +90,15 @@ def test_hash_changes_with_content_and_is_stable_when_unchanged(tmp_settings_fil
     assert pb.html_hash == h1                       # same content -> same hash
     _valid_update(pb, [{"index": 0, "text": "Ps 118 : 1", "size": 8}])
     assert pb.html_hash != h1                       # changed content -> new hash
+
+
+def test_hash_changes_when_only_fontfamily_changes(tmp_settings_file):
+    # review #2: the font is baked into the html as a css class, so a font change
+    # (same text) must change the hash, or the kiosk keeps the old font.
+    pb = psalmbord.Psalmbord()
+    _valid_update(pb, [{"index": 0, "text": "Ps 100 : 1", "size": 8}])
+    h_before = pb.html_hash
+    pb.update_psalmbord(fontfamily="Verdana", fontsize=8, fontweight=400,
+                        active=0, screens=[{"index": 0, "text": "Ps 100 : 1", "size": 8}],
+                        refreshrate=10)
+    assert pb.html_hash != h_before

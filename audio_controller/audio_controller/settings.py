@@ -323,6 +323,15 @@ def set_binary(obj):
     if not all(field in store for field in 'settings sources destinations'.split()):
         return
     _sanitize_uploaded_users(store)
+    # An uploaded file bypasses the admin-UI update_cameras() path, so re-apply the
+    # camera host guard here too (S-M4): a bad url_intern (loopback / injection)
+    # rejects the whole upload rather than reaching http://{url_intern}/ajaxcom.
+    for cam in store.get('cameras', []):
+        if isinstance(cam, dict) and 'url_intern' in cam:
+            try:
+                _validate_camera_host(cam['url_intern'])
+            except ValueError:
+                return  # fail closed: ignore the whole upload
     use_from_store(store)
     save()
 
@@ -535,9 +544,9 @@ def validate_user_attribute(name: str, value):
     Return value, or adjusted value, or None if it is not valid. """
     try:
         if name == 'username':
-            return value[0:50]  # max 50 characters
+            return str(value)[0:50]  # coerce + cap at 50 chars (never crash on non-str)
         elif name == 'password':
-            return value[0:50]  # max 50 characters
+            return str(value)[0:50]  # max 50 characters
         return value
     except:
         return None
@@ -627,8 +636,8 @@ def update_sources(new_sources: List[dict]):
         save()
         selected = [s.name for s in sources if s.selected]
         log_change("sources", f"{len(sources)} bronnen; geselecteerd: {selected}")
-    except:
-        pass
+    except Exception:
+        main_logger.exception("update_sources failed")
 
 
 def update_destinations(new_destinations: List[dict]):
@@ -657,8 +666,8 @@ def update_destinations(new_destinations: List[dict]):
         save()
         selected = [d.name for d in destinations if d.selected]
         log_change("destinations", f"{len(destinations)} bestemmingen; geselecteerd: {selected}")
-    except:
-        pass
+    except Exception:
+        main_logger.exception("update_destinations failed")
 
 
 def update_cameras(new_cameras: List[dict]):
@@ -702,7 +711,9 @@ def update_users(new_users: List[dict]):
 
         for obj in new_users:
             usr = user.User(**obj)
-            usr.username = validate_user_attribute("username", usr.username).strip()
+            # coerce to str before strip: a None/non-str username must not crash
+            # the whole save (corrupt import / admin edit).
+            usr.username = str(validate_user_attribute("username", usr.username) or "").strip()
             prior = existing.get(usr.username)
             incoming_pw = usr.password
 
@@ -730,7 +741,10 @@ def update_users(new_users: List[dict]):
         # get_user use the first match), so duplicate usernames would let a
         # low-privilege session bind to a higher-privileged row. Reject any
         # write that would create a duplicate. (security)
-        names = [u.username for u in new_list]
+        # Dedupe case-insensitively: login (get_user) matches usernames
+        # case-insensitively, so "Admin" and "admin" are the same account and one
+        # would shadow the other (an authorization/privilege-binding risk). (#17)
+        names = [u.username.lower() for u in new_list]
         if len(names) != len(set(names)):
             raise ValueError("duplicate usernames are not allowed")
 

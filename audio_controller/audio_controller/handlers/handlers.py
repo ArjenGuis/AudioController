@@ -268,8 +268,9 @@ class Login(BaseHandler):
     
     def get_user(self, username, password = None):
         for usr in settings.users:
-            # check usernames case-insensitive
-            if username.lower() != usr.username.lower():
+            # check usernames case-insensitive; str() so a corrupt (None) stored
+            # username cannot crash the login path with a 500 (#17)
+            if str(username).lower() != str(usr.username).lower():
                 continue
             if password is None or user.verify_password(password, usr.password):
                 # transparently upgrade a legacy unsalted hash to a salted one on

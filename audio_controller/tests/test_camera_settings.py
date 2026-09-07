@@ -97,3 +97,13 @@ def test_load_survives_unparseable_port(tmp_settings_file):
     assert settings.load() is True
     assert settings.settings.title == "Behouden"
     assert settings.cameras[0].port_http == "kapot"
+
+
+def test_upload_with_ssrf_camera_host_is_rejected(tmp_settings_file):
+    # review #4: an uploaded settings file must not bypass the url_intern guard.
+    import json as _json
+    settings.update_cameras([_cam(url_intern="10.0.0.5")])
+    store = _json.loads(settings.get_binary())
+    store["cameras"][0]["url_intern"] = "127.0.0.1"   # loopback -> SSRF
+    settings.set_binary(_json.dumps(store).encode("utf-8"))
+    assert settings.cameras[0].url_intern == "10.0.0.5"  # upload ignored, prior kept

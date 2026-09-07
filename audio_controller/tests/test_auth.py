@@ -52,3 +52,20 @@ def test_update_users_salts_and_clears_flag(tmp_settings_file):
     assert stored.password != "NewStrongPw"              # not plaintext
     assert user.verify_password("NewStrongPw", stored.password)
     assert stored.must_change_password is False          # flag cleared
+
+
+def test_update_users_rejects_case_insensitive_duplicate(tmp_settings_file):
+    # review #1: login matches usernames case-insensitively, so "Admin" and
+    # "admin" are the same account and must be rejected as a duplicate.
+    import pytest
+    with pytest.raises(Exception):
+        settings.update_users([
+            {"username": "Admin", "password": "Sterk!wachtwoord9", "admin": True},
+            {"username": "admin", "password": "Sterk!wachtwoord9", "admin": True},
+        ])
+
+
+def test_update_users_survives_non_string_username(tmp_settings_file):
+    # review #3: a corrupt (non-str) username must not crash the save with a 500.
+    settings.update_users([{"username": 12345, "password": "Sterk!wachtwoord9", "admin": True}])
+    assert any(u.username == "12345" for u in settings.users)

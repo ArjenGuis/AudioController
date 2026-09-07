@@ -135,19 +135,13 @@ class Psalmbord:
         settings.save()
         return self
 
-    def _active_text(self) -> str:
-        """Text of the active screen, or '' if there is none. Handles both dict
-        and PsalmbordScreen entries and guards an out-of-range active index (the
-        same guard psalmbord_as_html uses)."""
-        if not self.screens or not (0 <= self.active < len(self.screens)):
-            return ""
-        screen = self.screens[self.active]
-        return screen["text"] if isinstance(screen, dict) else screen.text
-
     def refresh_html_hash(self):
         """Recompute the content hash used to skip unchanged board refreshes
-        (Guis f9e284c). Always a real sha256 (even of ''), so it never collides
-        with the client's initial empty hash and leaves the board blank."""
-        self.html_hash = hashlib.sha256(self._active_text().encode("utf-8")).hexdigest()
+        (Guis f9e284c). Hash the RENDERED html (not just the text), so a change of
+        font family -- which is baked into the html as a css class -- also forces a
+        refresh; otherwise the kiosk would keep the old font until the text changes.
+        Always a real sha256 (even of ''), so it never collides with the client's
+        initial empty hash and leaves the board blank."""
+        self.html_hash = hashlib.sha256(self.psalmbord_as_html().encode("utf-8")).hexdigest()
 
 
