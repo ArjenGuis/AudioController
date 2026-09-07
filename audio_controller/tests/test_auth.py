@@ -101,3 +101,12 @@ def test_rename_with_blank_password_does_not_empty_it(tmp_settings_file):
     # original account + password untouched after the refused save
     assert settings.users[0].username == "beheer"
     assert user.verify_password("Sterk!wachtwoord9", settings.users[0].password)
+
+
+def test_setusers_rejects_weak_new_password(tmp_settings_file):
+    # review F2: the admin grid (update_users) must reject weak passwords too,
+    # like setUser does.
+    import pytest
+    for weak in ("admin", "password"):
+        with pytest.raises(ValueError):
+            settings.update_users([{"username": "beheer", "password": weak, "admin": True}])

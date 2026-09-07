@@ -322,7 +322,8 @@ def set_binary(obj):
     # check some required attributes (not all, because some appeared after upgrades)
     if not all(field in store for field in 'settings sources destinations'.split()):
         return
-    _sanitize_uploaded_users(store)
+    if not _sanitize_uploaded_users(store):
+        return  # reject an upload that carries a blank/invalid user password
     # An uploaded file bypasses the admin-UI update_cameras() path, so re-apply the
     # camera host guard here too (S-M4): a bad url_intern (loopback / injection)
     # rejects the whole upload rather than reaching http://{url_intern}/ajaxcom.
@@ -336,18 +337,23 @@ def set_binary(obj):
     save()
 
 
-def _sanitize_uploaded_users(store: dict):
+def _sanitize_uploaded_users(store: dict) -> bool:
     """Never trust password fields from an uploaded settings file (S-H1). A
-    genuine backup stores salted pbkdf2 hashes, which are kept as-is; anything
-    else (plaintext, or a bare legacy blake2b hash an attacker could craft into a
-    known-password account) is re-hashed so it cannot serve as a working
-    credential the uploader chose."""
+    genuine backup stores salted pbkdf2 hashes, which are kept as-is; a plaintext
+    or bare legacy blake2b hash is re-hashed so it cannot serve as a
+    known-password account. A BLANK password is refused (return False) rather than
+    hashed: unlike the admin grid there is no prior password to keep, so hashing ""
+    would create a working empty-password account. Returns False if the upload
+    must be rejected."""
     for obj in store.get('users', []):
         if not isinstance(obj, dict):
             continue
         pw = obj.get('password', '')
+        if not pw:
+            return False  # blank password in an upload -> reject the whole file
         if user.is_legacy_hash(pw):  # not already salted pbkdf2 -> plaintext or legacy
             obj['password'] = user.hash_password(pw)
+    return True
 
 
 #
@@ -731,9 +737,12 @@ def update_users(new_users: List[dict]):
                     # renamed account must be given a password.
                     raise ValueError("een nieuwe of hernoemde gebruiker vereist een wachtwoord")
             else:
-                # a new plaintext password was provided -> salt+hash it
-                usr.password = validate_user_attribute("password", incoming_pw)
-                usr.password = user.hash_password(usr.password)
+                # a new plaintext password was provided -> salt+hash it, but refuse
+                # weak/default passwords here too (the admin grid, not just setUser)
+                new_pw = validate_user_attribute("password", incoming_pw)
+                if user.is_weak_password(new_pw, usr.username):
+                    raise ValueError("Kies een sterker wachtwoord")
+                usr.password = user.hash_password(new_pw)
                 usr.must_change_password = False
 
             usr.admin = usr.admin or usr.admin == "True"

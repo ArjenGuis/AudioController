@@ -94,3 +94,12 @@ def test_get_binary_returns_json_bytes(tmp_settings_file):
     raw = settings.get_binary()
     parsed = json.loads(raw)
     assert parsed["settings"]["title"] == "Bin"
+
+
+def test_set_binary_rejects_blank_uploaded_password(tmp_settings_file):
+    # review: an uploaded user with a blank password must NOT be hashed into a
+    # working empty-password account; the whole upload is refused.
+    settings.settings.title = "KeepMe"
+    settings.set_binary(json.dumps(_store_with_user("")).encode("utf-8"))
+    assert settings.settings.title == "KeepMe"                     # upload ignored
+    assert not any(u.username == "imported" for u in settings.users)

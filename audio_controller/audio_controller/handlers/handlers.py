@@ -8,6 +8,7 @@ import math
 import datetime as dt
 import time
 import json
+import http.cookies
 from json import dumps
 from pathlib import Path
 #import traceback
@@ -46,10 +47,10 @@ async def _run_blocking(func):
         raise
 
 
-import http.cookies
 # 'samesite' is only a valid http.cookies.Morsel attribute on Python 3.8+; the Pi
 # runs 3.7, where sending it raises CookieError (500). Detect support once. (#16)
 _SAMESITE_SUPPORTED = "samesite" in http.cookies.Morsel()
+
 
 _LOCAL_HOSTNAMES = ("localhost", "127.0.0.1", "::1", "ip6-localhost")
 
@@ -292,9 +293,6 @@ class Login(BaseHandler):
 
         # User administration must not be reachable without authentication (S8).
         # login / logout / login_required stay open; the rest needs login, and
-        # listing or modifying users needs admin.
-        # User administration must not be reachable without authentication (S8).
-        # login / logout / login_required stay open; the rest needs login, and
         # listing or modifying users needs admin. On the trusted loopback listener
         # (login_required() False) the local operator UI manages accounts without
         # login by design; the internet-facing port requires it. The remote
@@ -352,7 +350,7 @@ class Login(BaseHandler):
                 return
             if self.check_user(username, password):
                 usr = self.get_user(username)
-                username = usr.username # seset username from storage, because login is not case-sensitive.
+                username = usr.username  # reset username from storage; login is case-insensitive
                 _login_reset(lock_key)
                 msg = f"Login user {username}"
                 print(msg)
@@ -400,7 +398,7 @@ class Login(BaseHandler):
 
             # Reject weak/default passwords so the forced first-login change (and
             # any self-service change) cannot re-set the shipped default. (E)
-            if new_password.lower() in ("admin", "password") or new_password == new_username:
+            if user.is_weak_password(new_password, new_username):
                 self.write(dumps({"success": False,
                                   "error": "Kies een sterker wachtwoord"}))
                 return

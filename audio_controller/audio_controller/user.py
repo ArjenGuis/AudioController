@@ -77,6 +77,13 @@ def is_legacy_hash(stored: str) -> bool:
     return not str(stored).startswith("pbkdf2_sha256$")
 
 
+def is_weak_password(password, username) -> bool:
+    """True for the shipped defaults and password==username. Used to reject weak
+    passwords both in the self-service change (setUser) and the admin grid
+    (update_users), so a weak password cannot be set from either path."""
+    return str(password).lower() in ("admin", "password") or password == username
+
+
 def verify_password(password: str, stored: str) -> bool:
     """ Verify a plaintext password against a stored hash. Accepts both the new
     salted format and legacy unsalted blake2b hashes (backward compatible). """

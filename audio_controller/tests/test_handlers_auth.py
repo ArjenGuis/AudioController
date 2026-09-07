@@ -12,8 +12,6 @@ from audio_controller import settings, user
 
 def _xsrf_from(headers):
     """Extract the _xsrf cookie value from a response's Set-Cookie header(s)."""
-    for _, v in headers.get_all():
-        pass
     cookies = headers.get_list("Set-Cookie")
     for c in cookies:
         m = re.match(r"_xsrf=([^;]+)", c)
