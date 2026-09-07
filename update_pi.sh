@@ -565,6 +565,12 @@ case "$ACTIE" in
             echo \"host:     \$(hostname)\"
             grep -h __version__ $REMOTE_APP/__init__.py 2>/dev/null | head -1 | sed 's/^/versie:   /' || true
             [ -f ~/AudioController/deploy_info.txt ] && sed 's/^/deploy:   /' ~/AudioController/deploy_info.txt || echo 'deploy:   (geen deploy_info.txt; van voor dit script)'
+            pyver=\$(~/AudioController/pyenv/bin/python --version 2>&1 | awk '{print \$2}')
+            [ -z \"\$pyver\" ] && pyver=\$(python3 --version 2>&1 | awk '{print \$2}')
+            case \"\$pyver\" in
+                3.[0-7].*|3.[0-7]) echo \"python:   \$pyver  LET OP: < 3.8 -> cookies met SameSite falen (login/logout 500, issue #16 werkt via compat-fix; overweeg OS/Python-upgrade)\" ;;
+                *) echo \"python:   \$pyver\" ;;
+            esac
             echo \"service:  \$(systemctl is-active $SERVICE 2>/dev/null || true), sinds \$(systemctl show -p ActiveEnterTimestamp --value $SERVICE 2>/dev/null || echo '?')\"
             echo \"uptime:  \$(uptime)\"
             echo \"schijf:   \$(df -h / | tail -1 | awk '{print \$3\" gebruikt van \"\$2\" (\"\$5\")\"}')\"
