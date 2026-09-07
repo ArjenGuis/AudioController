@@ -46,6 +46,11 @@ async def _run_blocking(func):
         raise
 
 
+import http.cookies
+# 'samesite' is only a valid http.cookies.Morsel attribute on Python 3.8+; the Pi
+# runs 3.7, where sending it raises CookieError (500). Detect support once. (#16)
+_SAMESITE_SUPPORTED = "samesite" in http.cookies.Morsel()
+
 _LOCAL_HOSTNAMES = ("localhost", "127.0.0.1", "::1", "ip6-localhost")
 
 
@@ -143,8 +148,15 @@ class BaseHandler(tornado.web.RequestHandler):
         # httponly: the auth cookie is used server-side only, so keeping it out of
         # document.cookie limits session theft via any XSS; samesite=Lax is extra
         # CSRF hardening. (No secure=True: the app is served over plain HTTP.)
-        self.set_secure_cookie("audio_controller_user", username.encode("utf-8"),
-                               httponly=True, samesite="Lax")
+        #
+        # http.cookies.Morsel only accepts the 'samesite' attribute on Python 3.8+.
+        # The Pi runs Python 3.7, where passing samesite raises CookieError and
+        # 500s EVERY login and logout (issue #16). So only send samesite where the
+        # runtime supports it; httponly still applies everywhere. (#16)
+        kwargs = {"httponly": True}
+        if _SAMESITE_SUPPORTED:
+            kwargs["samesite"] = "Lax"
+        self.set_secure_cookie("audio_controller_user", username.encode("utf-8"), **kwargs)
 
     def logged_in(self):
         """Return True if user is logged in, False otherwise."""

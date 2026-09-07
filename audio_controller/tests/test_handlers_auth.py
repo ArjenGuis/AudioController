@@ -149,3 +149,34 @@ class TestLocalNoLogin(_Base):
         r = self._post("/general/downloadSettings", {}, token=token, cookie=cookie)
         self.assertEqual(r.code, 200)
         self.assertNotEqual(json.loads(r.body).get("success"), False)
+
+
+class TestLoginLogoutCookie(_Base):
+    INTERNAL = False
+
+    def test_logout_returns_200_and_clears_cookie(self):
+        # #16: logout must never 500. On Python 3.7 the old set_cookie_username
+        # passed samesite, which http.cookies rejects (CookieError -> 500) on every
+        # login and logout. The cookie helper now only sends samesite where
+        # supported, so this works on 3.7 and 3.8+ alike.
+        token, cookie = self._prime_xsrf()
+        r = self._post("/login/logout", {}, token=token, cookie=cookie)
+        self.assertEqual(r.code, 200)
+        self.assertEqual(json.loads(r.body).get("success"), True)
+
+    def test_login_sets_auth_cookie_without_error(self):
+        token, cookie = self._prime_xsrf()
+        r = self.fetch("/login/login", method="POST",
+                       body=json.dumps({"username": "admin", "password": "admin"}),
+                       headers={"Content-Type": "application/json", "X-Xsrftoken": token,
+                                "Cookie": cookie, "Referer": "http://localhost/"})
+        self.assertEqual(r.code, 200)
+        self.assertTrue(any("audio_controller_user=" in c for c in r.headers.get_list("Set-Cookie")))
+
+
+def test_samesite_detection_matches_runtime():
+    # #16: the guard must reflect whether http.cookies.Morsel accepts samesite
+    # (False on Python 3.7, True on 3.8+).
+    import http.cookies
+    from audio_controller.handlers import handlers
+    assert handlers._SAMESITE_SUPPORTED == ("samesite" in http.cookies.Morsel())
