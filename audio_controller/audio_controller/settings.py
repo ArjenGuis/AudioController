@@ -6,6 +6,7 @@ import logging
 import threading
 import ipaddress
 import re
+from datetime import datetime
 from urllib.parse import urlparse
 from typing import List
 from pathlib import Path
@@ -102,6 +103,9 @@ def default_destinations():
 
 # file to save settings (including sources and destinations)
 file = Path.home() / ".audio_controller_settings.json"
+# human-readable audit trail of settings changes (who-changed-what review after a
+# physical tamper; see the security-camera discussion). Never contains secrets.
+changelog_file = Path.home() / "audio_controller_logs" / "settings_changes.log"
 # legacy pickle file, only read once for a one-time migration to json (S2)
 _legacy_pickle_file = Path.home() / ".audio_controller_settings.pickle"
 _save_lock = threading.Lock()
@@ -543,6 +547,35 @@ def validate_user_attribute(name: str, value):
 #
 
 
+def log_change(section: str, summary: str):
+    """Append one timestamped, secret-free line to the settings changelog. Best
+    effort: a logging failure must never break saving a setting. (audit trail)"""
+    if not summary:
+        return
+    try:
+        changelog_file.parent.mkdir(exist_ok=True)
+        line = f"{datetime.now().isoformat(timespec='seconds')} | {section} | {summary}\n"
+        with open(changelog_file, 'a', encoding='utf-8') as f:
+            f.write(line)
+        try:
+            os.chmod(changelog_file, 0o600)
+        except OSError:
+            pass
+    except Exception:
+        main_logger.exception("could not write settings changelog")
+
+
+def _diff_fields(before: dict, after: dict, skip=()) -> str:
+    """Compact 'field: old -> new' summary of changed keys, skipping `skip`."""
+    parts = []
+    for k in after:
+        if k in skip:
+            continue
+        if before.get(k) != after.get(k):
+            parts.append(f"{k}: {before.get(k)!r} -> {after.get(k)!r}")
+    return ", ".join(parts)
+
+
 def update_settings(obj: dict):
     """ Update both cached and saved settings with values from 'obj'. """
     # dictonary with key, value = attribute-name, type
@@ -563,6 +596,7 @@ def update_settings(obj: dict):
                 pass  # ignore attr
     if validate_settings(settings):
         save()
+        log_change("settings", _diff_fields(asdict(backup), asdict(settings)))
     else:  # restore
         settings.__init__(**asdict(backup))
 
@@ -591,6 +625,8 @@ def update_sources(new_sources: List[dict]):
         sources.clear()
         for obj in new_list: sources.append(obj)
         save()
+        selected = [s.name for s in sources if s.selected]
+        log_change("sources", f"{len(sources)} bronnen; geselecteerd: {selected}")
     except:
         pass
 
@@ -619,6 +655,8 @@ def update_destinations(new_destinations: List[dict]):
         destinations.clear()
         for obj in new_list: destinations.append(obj)
         save()
+        selected = [d.name for d in destinations if d.selected]
+        log_change("destinations", f"{len(destinations)} bestemmingen; geselecteerd: {selected}")
     except:
         pass
 
@@ -645,6 +683,9 @@ def update_cameras(new_cameras: List[dict]):
 
         cameras[:] = new_list
         save()
+        # names + LAN hosts only; never the ONVIF username/password
+        summary = ", ".join(f"{c.name}@{c.url_intern}" for c in cameras)
+        log_change("cameras", f"{len(cameras)} camera's: {summary}")
     except Exception:
         main_logger.exception("settings write failed")
         raise
@@ -695,6 +736,11 @@ def update_users(new_users: List[dict]):
 
         users[:] = new_list
         save()
+        # usernames + roles only; never passwords/hashes
+        summary = ", ".join(
+            f"{u.username}({'admin' if u.admin else ''}{'+camera' if u.camera else ''})"
+            for u in users)
+        log_change("users", f"{len(users)} gebruikers: {summary}")
     except Exception:
         main_logger.exception("settings write failed")
         raise
