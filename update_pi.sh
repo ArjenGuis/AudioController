@@ -395,15 +395,19 @@ do_backup() {
     # een ontbrekend bestand (bijv. de legacy pickle) geen fout geeft; --rsync-path met
     # sudo omdat /root/ niet leesbaar is voor de ssh-user.
     # shellcheck disable=SC2086
-    if rsync -rzt --chmod=D700,F600 \
+    if rsync -rzt \
         --exclude="pyenv" --exclude="fontawesome*" --exclude="bootstrap*" \
         --exclude="*.pyc" --exclude="__pycache__" --exclude=".pytest_cache" --exclude="*.egg-info" \
         -e "$ssh_cmd" \
         "$PI_USER@$PI_HOST:~/AudioController/" "$dest/" \
-    && rsync -dzt --chmod=D700,F600 --rsync-path="sudo -n rsync" \
+    && rsync -dzt --rsync-path="sudo -n rsync" \
         --include=".audio_controller_*" --exclude="*" \
         -e "$ssh_cmd" \
         "$PI_USER@$PI_HOST:$svc_home/" "$dest/home/"; then
+        # Lock the whole backup to owner-only. Done after the transfer (not via
+        # rsync --chmod, which macOS/openrsync does not support) so the cookie
+        # secret and credentials are never group/world-readable. (S-M3)
+        chmod -R go-rwx "$dest" 2>/dev/null || true
         local aantal
         aantal=$(ls -1d "$BACKUP_DIR/$LOC"/*/ 2>/dev/null | wc -l | tr -d ' ')
         echo "   backup klaar ($(du -sh "$dest" 2>/dev/null | cut -f1)); $aantal backup(s) bewaard voor $LOC"
