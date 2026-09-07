@@ -371,7 +371,7 @@ do_backup() {
     # <timestamp>/home/, zodat ook de live instellingen van dat moment bewaard blijven.
     # Mislukt de backup, dan stopt alles (tenzij --no-backup): eerst veiligstellen,
     # dan pas pushen.
-    local ts dest ssh_cmd svc_user svc_home
+    local ts dest ssh_cmd svc_user svc_home old_umask
     ts=$(date +%Y%m%d_%H%M%S)
     dest="$BACKUP_DIR/$LOC/$ts"
     ssh_cmd="$SSH_E"
@@ -380,11 +380,14 @@ do_backup() {
         echo "   FOUT: kan de service-user/home niet bepalen (Pi onbereikbaar?); er wordt NIETS gepusht."
         exit 1
     fi
-    mkdir -p "$dest/home"
     # De backup bevat geheimen: het cookie-ondertekengeheim
     # (.audio_controller_cookie.txt) en de settings met wachtwoord-hashes en
-    # camera/icecast-credentials. Houd de hele backupboom eigenaar-only, anders
-    # kan een andere gebruiker op deze laptop admin-cookies vervalsen (S-M3).
+    # camera/icecast-credentials. Zet umask 077 VOOR de overdracht zodat rsync de
+    # bestanden meteen als 0600/0700 aanmaakt en er geen venster is waarin ze
+    # wereld-leesbaar op de laptop staan (macOS/openrsync kent --chmod niet). (S-M3)
+    old_umask=$(umask)
+    umask 077
+    mkdir -p "$dest/home"
     chmod 700 "$BACKUP_DIR" "$BACKUP_DIR/$LOC" "$dest" "$dest/home" 2>/dev/null || true
     echo "-- backup: download huidige bestanden van $DOEL"
     echo "           -> $dest"
@@ -404,10 +407,10 @@ do_backup() {
         --include=".audio_controller_*" --exclude="*" \
         -e "$ssh_cmd" \
         "$PI_USER@$PI_HOST:$svc_home/" "$dest/home/"; then
-        # Lock the whole backup to owner-only. Done after the transfer (not via
-        # rsync --chmod, which macOS/openrsync does not support) so the cookie
-        # secret and credentials are never group/world-readable. (S-M3)
+        # Belt-and-braces: also strip group/other afterwards (umask 077 above
+        # already created everything owner-only). (S-M3)
         chmod -R go-rwx "$dest" 2>/dev/null || true
+        umask "$old_umask"
         local aantal
         aantal=$(ls -1d "$BACKUP_DIR/$LOC"/*/ 2>/dev/null | wc -l | tr -d ' ')
         echo "   backup klaar ($(du -sh "$dest" 2>/dev/null | cut -f1)); $aantal backup(s) bewaard voor $LOC"
@@ -422,6 +425,7 @@ do_backup() {
         echo "   FOUT: backup mislukt; er wordt NIETS gepusht."
         echo "   (Eerste keer? Accepteer de host-key handmatig, of gebruik --no-backup om te forceren.)"
         rm -rf "$dest"   # eigen, zojuist aangemaakte map; een halve backup mag nooit als 'nieuwste' gelden
+        umask "$old_umask"
         exit 1
     fi
 }
