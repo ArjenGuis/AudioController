@@ -1,6 +1,10 @@
 # AudioController — working notes for Claude
 
-Tornado + python-socketio server for a church audio system, running on a Raspberry Pi.
+Tornado + python-socketio server for a church audio system, running on a Raspberry Pi
+(**Python 3.7** — mind stdlib differences: e.g. `http.cookies` has no SameSite before
+3.8, which once 500'd every login/logout, see issue #16). For cookie- or stdlib-
+sensitive changes, validate on real 3.7 in a container, e.g. `docker run --rm python:3.7 ...`,
+because the local venv is a newer Python and won't reproduce 3.7-only failures.
 The frontend is a Transcrypt-compiled single-page app (source in `transcrypt/python/`,
 compiled into `audio_controller/audio_controller/static/js/main*.js`) plus a `/psalmbord`
 kiosk page (`views/psalmbord.html`).
