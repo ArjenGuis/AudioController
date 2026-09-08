@@ -32,9 +32,33 @@ BACKUP_DIR="${BACKUP_DIR:-$HOME/AudioController_pi_backups}"
 TEST_BACKUP_DIR="${TESTPI_BACKUP_DIR:-/tmp/testpi_backups}"
 
 if [ "${1:-}" = "--env" ]; then
-    echo "export TEST_HOST=pi@127.0.0.1:$SSH_PORT"
+    # de app-gebruiker verschilt per locatie (wierden draait onder gergemwierden)
+    u=$(docker exec "$NAME" cat /etc/testpi_user 2>/dev/null || echo pi)
+    echo "export TEST_HOST=$u@127.0.0.1:$SSH_PORT"
     echo "export HTTP_PORT=$HTTP_PORT"
     echo "export BACKUP_DIR=$TEST_BACKUP_DIR"
+    exit 0
+fi
+
+if [ "${1:-}" = "--no-audio" ]; then
+    # Locaties die nog op de legacy pickle staan (noord, wierden) hebben bij het
+    # starten nog geen JSON-config, dus daar kan enable_audio pas uit nadat de app
+    # hem eenmaal gemigreerd heeft. Draai dit daarna, gevolgd door --restart.
+    h=$(docker exec "$NAME" cat /etc/testpi_svchome 2>/dev/null || echo /root)
+    docker exec -i -e CFGHOME="$h" "$NAME" python3 - <<'PYEOF'
+import json, os
+p = os.path.join(os.environ.get("CFGHOME", "/root"), ".audio_controller_settings.json")
+try:
+    d = json.load(open(p))
+except FileNotFoundError:
+    raise SystemExit("geen JSON-config gevonden in %s (draai eerst een update)" % os.path.dirname(p))
+if d.get("settings", {}).get("enable_audio"):
+    d["settings"]["enable_audio"] = False
+    json.dump(d, open(p, "w"), indent=2)
+    print("enable_audio uitgezet in %s" % p)
+else:
+    print("enable_audio stond al uit")
+PYEOF
     exit 0
 fi
 
@@ -58,7 +82,28 @@ docker run -d --name "$NAME" --platform linux/arm/v7 \
     -p "$SSH_PORT:22" -p "$HTTP_PORT:8080" -p "$INT_PORT:5000" "$IMAGE" >/dev/null
 sleep 4
 
-docker exec -i "$NAME" bash -c 'cat > /home/pi/.ssh/authorized_keys && chown pi:pi /home/pi/.ssh/authorized_keys && chmod 600 /home/pi/.ssh/authorized_keys' < "$KEY.pub"
+# Welke gebruiker draait de app? Op de meeste Pi's 'pi', op wierden 'gergemwierden'.
+# Uit de unit van de backup halen, zodat de paden en de ssh-login kloppen.
+APPUSER=pi
+if [ -n "$LOC" ]; then
+    if [ -n "$STAMP" ]; then B="$BACKUP_DIR/$LOC/$STAMP"; else
+        B=$(ls -d "$BACKUP_DIR/$LOC"/*/ 2>/dev/null | sort | tail -1)
+    fi
+    if [ -n "$B" ] && [ -f "$B/audio_controller.service" ]; then
+        wd=$(grep -E '^WorkingDirectory=' "$B/audio_controller.service" | head -1 | cut -d= -f2-)
+        case "$wd" in /home/*) APPUSER=$(printf '%s' "$wd" | cut -d/ -f3) ;; esac
+    fi
+fi
+if [ "$APPUSER" != "pi" ]; then
+    echo "-- app-gebruiker is '$APPUSER' (uit de unit), wordt aangemaakt"
+    docker exec "$NAME" bash -c "
+        useradd -m -s /bin/bash '$APPUSER' 2>/dev/null || true
+        echo '$APPUSER ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/'$APPUSER'
+        mkdir -p /home/'$APPUSER'/.ssh && chown -R '$APPUSER':'$APPUSER' /home/'$APPUSER'/.ssh
+        chmod 700 /home/'$APPUSER'/.ssh"
+fi
+docker exec "$NAME" bash -c "echo '$APPUSER' > /etc/testpi_user"
+docker exec -i "$NAME" bash -c "cat > /home/$APPUSER/.ssh/authorized_keys && chown $APPUSER:$APPUSER /home/$APPUSER/.ssh/authorized_keys && chmod 600 /home/$APPUSER/.ssh/authorized_keys" < "$KEY.pub"
 
 # de container maakt bij elke start nieuwe hostkeys
 ssh-keygen -R "[127.0.0.1]:$SSH_PORT" >/dev/null 2>&1 || true
@@ -69,33 +114,42 @@ done
 ssh-keyscan -p "$SSH_PORT" -H 127.0.0.1 >> "$HOME/.ssh/known_hosts" 2>/dev/null
 
 if [ -n "$LOC" ]; then
-    if [ -n "$STAMP" ]; then B="$BACKUP_DIR/$LOC/$STAMP"; else
-        B=$(ls -d "$BACKUP_DIR/$LOC"/*/ 2>/dev/null | sort | tail -1)
-    fi
     [ -n "$B" ] && [ -d "$B" ] || { echo "Geen backup gevonden voor '$LOC' in $BACKUP_DIR"; exit 2; }
     echo "-- backup terugzetten: $B"
-    docker exec "$NAME" mkdir -p /home/pi/AudioController
+    APPDIR="/home/$APPUSER/AudioController"
+    docker exec "$NAME" mkdir -p "$APPDIR"
     for f in audio_controller run_audio_controller.sh audio_controller.service audio_controller.html; do
-        [ -e "$B/$f" ] && docker cp "$B/$f" "$NAME:/home/pi/AudioController/"
+        [ -e "$B/$f" ] && docker cp "$B/$f" "$NAME:$APPDIR/"
     done
+    # De config hoort in de home van de SERVICE-user (User= in de unit, meestal root),
+    # niet in die van de ssh-user.
+    SVCUSER=root
+    if [ -f "$B/audio_controller.service" ]; then
+        u=$(grep -E '^User=' "$B/audio_controller.service" | head -1 | cut -d= -f2-)
+        [ -n "$u" ] && SVCUSER=$u
+    fi
+    SVCHOME=$(docker exec "$NAME" getent passwd "$SVCUSER" | cut -d: -f6)
+    [ -n "$SVCHOME" ] || SVCHOME=/root
     for f in .audio_controller_settings.json .audio_controller_cookie.txt \
              .audio_controller_users.txt .audio_controller_settings.pickle; do
-        [ -f "$B/home/$f" ] && docker cp "$B/home/$f" "$NAME:/root/$f"
+        [ -f "$B/home/$f" ] && docker cp "$B/home/$f" "$NAME:$SVCHOME/$f"
     done
-    docker exec "$NAME" bash -c '
-        chown -R pi:pi /home/pi/AudioController
-        chmod 600 /root/.audio_controller_* 2>/dev/null || true
-        [ -f /home/pi/AudioController/audio_controller.service ] &&
-            cp /home/pi/AudioController/audio_controller.service /etc/systemd/system/'
+    docker exec "$NAME" bash -c "
+        chown -R '$APPUSER':'$APPUSER' '$APPDIR'
+        chmod 600 '$SVCHOME'/.audio_controller_* 2>/dev/null || true
+        [ -f '$APPDIR/audio_controller.service' ] &&
+            cp '$APPDIR/audio_controller.service' /etc/systemd/system/"
+    docker exec "$NAME" bash -c "echo '$SVCHOME' > /etc/testpi_svchome"
+    echo "   app in $APPDIR, config in $SVCHOME (service-user $SVCUSER)"
 
     # Zonder geluidskaart kan de app niet starten: set_routes zoekt een echt
     # opnameapparaat en valt om met KeyError: 'real_card'. Dan is er ook niets te
     # herstarten of te healthchecken. Daarom staat enable_audio hier standaard uit;
     # met WITH_AUDIO=1 laat je de config ongemoeid.
     if [ "${WITH_AUDIO:-0}" != "1" ]; then
-        docker exec -i "$NAME" python3 - <<'PYEOF'
-import json
-p = "/root/.audio_controller_settings.json"
+        docker exec -i -e CFGHOME="$SVCHOME" "$NAME" python3 - <<'PYEOF'
+import json, os
+p = os.path.join(os.environ.get("CFGHOME", "/root"), ".audio_controller_settings.json")
 try:
     d = json.load(open(p))
     if d.get("settings", {}).get("enable_audio"):

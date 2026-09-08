@@ -39,6 +39,15 @@
 # hangen) en de pip-stappen op de Pi hebben een tijdslimiet. Mislukt de herstart, dan
 # toont het script de laatste logregels en wijst het op --rollback.
 #
+# LET OP bij locaties die nog op de legacy pickle staan (noord, wierden; west niet):
+# de nieuwe versie migreert die pickle eenmalig naar json en VERWIJDERT hem daarna
+# (unpicklen is onveilig, S2). Rol je daarna alleen de code terug, dan vindt de oude
+# versie geen pickle meer, kent hij json niet, en start hij met FABRIEKSINSTELLINGEN.
+# Gebruik voor zo'n terugval dus altijd:
+#     ./update_pi.sh <locatie> --rollback=<datum-tijd van voor de update> --with-config
+# Getest met testpi/: dan komt de oorspronkelijke pickle terug en draait de oude versie
+# weer met de eigen instellingen. Zonder --with-config gebeurt dat niet.
+#
 # Rollback: zet de bestanden uit een backup-map terug (standaard de nieuwste) en herstart.
 # De huidige staat wordt eerst zelf gebackupt (tenzij --no-backup), dus ook een rollback is
 # omkeerbaar. Alleen met --with-config gaat ook de config uit backup/home/ terug (de service

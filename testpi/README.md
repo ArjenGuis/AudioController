@@ -22,6 +22,21 @@ eval "$(./testpi/start.sh --env)"   # zet TEST_HOST, HTTP_PORT en BACKUP_DIR
 Zonder locatie (`./testpi/start.sh`) krijg je een lege Pi — handig om een verse
 installatie te testen.
 
+Werkt voor elke locatie. De app-gebruiker en de service-gebruiker worden uit de
+`audio_controller.service` van de backup gelezen, dus wierden (die onder
+`gergemwierden` draait in plaats van `pi`) komt vanzelf goed terecht, met de config
+in de home van de service-user.
+
+**Staat de locatie nog op de legacy pickle** (noord en wierden, west niet), dan is er
+bij het starten nog geen JSON-config en kan `enable_audio` pas ná de eerste migratie
+uit. De update laat de app dan één keer omvallen op de ontbrekende geluidskaart;
+daarna:
+
+```bash
+./testpi/start.sh --no-audio
+./update_pi.sh noord --restart --yes
+```
+
 Reken op enkele minuten voor de eerste `--yes` in een verse container: armv7 draait
 onder emulatie en `pip install` moet de hele venv opbouwen. Een tweede update in
 dezelfde container is snel, want dan staat de venv er al — net als op een echte Pi.
@@ -70,6 +85,44 @@ er op een Pi zonder (of met een hernummerde) geluidskaart zou gebeuren.
 - De healthcheck toonde `-> 000000` (curl schrijft zelf al `000`, en er stond nog een
   `|| echo 000` achter), en `--status` toonde `python:   line` als de venv ontbrak.
   Allebei gefixt in `update_pi.sh`.
+
+## Getest per locatie
+
+Elke locatie heeft een ander vertrekpunt, en dus een ander upgradepad:
+
+| | versie op de Pi | config | migratie | app-gebruiker |
+|---|---|---|---|---|
+| west | 1.5.0 | JSON v11 | geen | `pi` |
+| noord | 1.0 | pickle **v8** | v8 → 9 → 10 → 11 | `pi` |
+| wierden | 1.3 | pickle **v9** | v9 → 10 → 11 | **`gergemwierden`** |
+
+Met alleen west zou de **pickle → JSON-migratie** helemaal niet getest zijn; die was
+op west al gebeurd. Juist daar zat eerder een bug (de v9-migratie die alle
+instellingen resette, `1202acc`). Test daarom bij voorkeur tegen noord of wierden
+voordat je die Pi's bijwerkt.
+
+Uitkomst van die test: de migratie klopt. noord kwam van v8 naar v11 met 26 bronnen,
+7 bestemmingen en dezelfde namen; wierden van v9 naar v11 met 10 bronnen en 4
+bestemmingen. Beide daarna service `active`, `/` → 200 en `/psalmbord` → 302.
+
+### Terugrollen van een pickle-locatie is niet vanzelf veilig
+
+De nieuwe versie migreert de pickle eenmalig naar json en **verwijdert hem daarna**
+(unpicklen is onveilig, S2). Rol je vervolgens alleen de code terug, dan vindt de
+oude versie geen pickle meer, kent json niet, en start met **fabrieksinstellingen**.
+Dat is hier ook echt gebeurd: na een kale `--rollback` draaide wierden weer op 1.3,
+maar met titel "Noorderkerk" in plaats van "GerGemWierden".
+
+Met de config erbij gaat het wel goed:
+
+```bash
+./update_pi.sh wierden --rollback=<datum-tijd van vóór de update> --with-config --yes
+```
+
+Geverifieerd: dan staat de oorspronkelijke pickle terug (v9, GerGemWierden, 10
+bronnen, 4 bestemmingen) en draait 1.3 weer met de eigen instellingen. Let op dat je
+de backup van vóór de update aanwijst — elke rollback maakt zelf ook een backup, dus
+"de nieuwste" wijst al snel naar de verkeerde staat.
 
 ## Poorten
 
