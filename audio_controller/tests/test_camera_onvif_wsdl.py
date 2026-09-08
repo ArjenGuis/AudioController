@@ -53,9 +53,11 @@ class _FakeService:
 
 class _FakeONVIFCamera:
     calls = []
+    kwargs = []
 
     def __init__(self, host, port, user, passwd, wsdl_dir=None, **kw):
         _FakeONVIFCamera.calls.append(wsdl_dir)
+        _FakeONVIFCamera.kwargs.append(kw)
 
     def create_media_service(self):
         return _FakeService()
@@ -67,6 +69,7 @@ class _FakeONVIFCamera:
 @pytest.fixture
 def fake_onvif(monkeypatch):
     _FakeONVIFCamera.calls.clear()
+    _FakeONVIFCamera.kwargs.clear()
     monkeypatch.setattr(camera, "ONVIFCamera", _FakeONVIFCamera)
     return _FakeONVIFCamera
 
@@ -84,3 +87,36 @@ def test_connect_passes_wsdl_dir(fake_onvif):
 def test_is_onvif_available_passes_wsdl_dir_and_reports_true(fake_onvif):
     assert _cam().is_onvif_available() is True
     assert fake_onvif.calls == [camera.ONVIF_WSDL_DIR]
+
+
+# ONVIF-timeout: onvif-zeep geeft zeep geen timeout mee, dus draaide requests met
+# timeout=None. Een camera die wel op het netwerk zit maar niet antwoordt liet
+# connect() ~75s hangen (gemeten), en de melding "Geen live uitzending" in de
+# camera-app wacht daarop. Op west (Pi 3) was dat zondag zichtbaar.
+
+def test_onvif_transport_has_timeout_and_cache():
+    t = camera.onvif_transport()
+    assert t.load_timeout == camera.ONVIF_TIMEOUT
+    assert t.operation_timeout == camera.ONVIF_TIMEOUT
+    # onvif-zeep bouwt een CachingClient, en die zet alleen zelf een SqliteCache op
+    # als er geen transport is meegegeven; zonder deze cache zou de WSDL-parsing op
+    # een Pi juist trager worden
+    assert t.cache is not None
+
+
+def test_onvif_transport_honours_explicit_timeout():
+    t = camera.onvif_transport(3)
+    assert t.load_timeout == 3
+    assert t.operation_timeout == 3
+
+
+def test_connect_passes_transport_with_timeout(fake_onvif):
+    _cam().connect()
+    transport = fake_onvif.kwargs[0]["transport"]
+    assert transport.operation_timeout == camera.ONVIF_TIMEOUT
+
+
+def test_is_onvif_available_uses_its_timeout_argument(fake_onvif):
+    _cam().is_onvif_available(timeout=3)
+    transport = fake_onvif.kwargs[0]["transport"]
+    assert transport.operation_timeout == 3

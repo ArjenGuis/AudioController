@@ -4,6 +4,8 @@ from dataclasses import dataclass, field, asdict, is_dataclass
 import onvif
 from onvif import ONVIFCamera
 from urllib.parse import urlparse
+from zeep.cache import SqliteCache
+from zeep.transports import Transport
 import glob
 import json
 import os
@@ -35,6 +37,27 @@ def find_onvif_wsdl_dir(package_dir: str | None = None, prefix: str | None = Non
 
 # None -> geef de onvif-zeep default door, zodat de foutmelding het ontbrekende pad noemt
 ONVIF_WSDL_DIR = find_onvif_wsdl_dir() or os.path.join(os.path.dirname(os.path.dirname(onvif.__file__)), "wsdl")
+
+# onvif-zeep geeft zeep geen timeout mee, dus draaien de ONVIF-calls met requests'
+# timeout=None: een camera die wel op het netwerk zit maar niet antwoordt laat connect()
+# eindeloos hangen (ajaxcom heeft wel een timeout). Op een Pi 3 is de ONVIF-handshake
+# toch al seconden werk, dus begrens hem expliciet.
+ONVIF_TIMEOUT = 10
+
+
+def onvif_transport(timeout: int = ONVIF_TIMEOUT) -> Transport:
+    """Zeep-transport met timeout voor de ONVIF-calls.
+
+    onvif-zeep bouwt een CachingClient, en die zet alleen zelf een SqliteCache op als er
+    geen transport is meegegeven. Geef die cache hier dus mee, anders wordt de
+    WSDL-parsing juist trager in plaats van sneller.
+    """
+    return Transport(
+        cache=SqliteCache(),
+        timeout=timeout,
+        operation_timeout=timeout,
+    )
+
 
 # camera-preset die niet in het bedieningspaneel getoond wordt (home-positie)
 HOME_PRESET_TOKEN = "0"
@@ -98,6 +121,7 @@ class Camera:
                 self.username,
                 self.password,
                 ONVIF_WSDL_DIR,
+                transport=onvif_transport(),
             )
 
             self._media = self._cam.create_media_service()
@@ -258,6 +282,9 @@ class Camera:
                 self.username,
                 self.password,
                 ONVIF_WSDL_DIR,
+                # de timeout-parameter werd hier niet gebruikt; zonder transport
+                # draaide ook deze check zonder tijdslimiet
+                transport=onvif_transport(timeout),
             )
 
             device = cam.create_devicemgmt_service()
