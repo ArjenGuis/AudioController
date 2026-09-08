@@ -82,6 +82,17 @@ er op een Pi zonder (of met een hernummerde) geluidskaart zou gebeuren.
   op ontbrekende `libxml2`/`libxslt`-dev-pakketten. Bestaande Pi's merkten dat niet
   (daar staat 5.2.2 al), maar een **verse** installatie zou stuklopen. Nu `lxml<5.3` in
   `setup.py`.
+- **`--full` sloopte wierden.** De unit in de checkout wijst naar
+  `/home/pi/AudioController`, maar wierden draait in `/home/gergemwierden/...`. Na
+  `--full` startte de service niet meer: `cd: /home/pi/AudioController: No such file
+  or directory`. Het script waarschuwde er alleen in tekst voor, en met `--yes`
+  vervalt de bevestiging. `--full` zet die paden nu om naar de home van de
+  doelgebruiker.
+- **`run_audio_controller.sh` stond op 777** (wereld-schrijfbaar) op alle drie de
+  Pi's, gezet door `update_pi.sh` zelf. Dat script draait via de unit als **root**,
+  dus elke lokale gebruiker kon het herschrijven en bij de volgende herstart root
+  worden. Nu 755. Let op: dat helpt pas bij een volgende `--full`; op de Pi's zelf
+  staat het nog op 777 tot je het rechtzet.
 - De healthcheck toonde `-> 000000` (curl schrijft zelf al `000`, en er stond nog een
   `|| echo 000` achter), en `--status` toonde `python:   line` als de venv ontbrak.
   Allebei gefixt in `update_pi.sh`.

@@ -660,7 +660,7 @@ case "$ACTIE" in
         preflight
         echo
         echo "Volledige deploy herinstalleert de systemd-unit uit audio_controller.service."
-        [ "$LOC" = "wierden" ] && echo "  NB: die unit gebruikt /home/pi-paden; controleer of dat op wierden klopt."
+        echo "  De /home/pi-paden in de unit worden omgezet naar de home van $PI_USER."
         bevestig "Volledige deploy naar $DOEL?"
         [ "$DO_BACKUP" -eq 1 ] && do_backup || echo "-- backup overgeslagen (--no-backup)"
         sync_files ""
@@ -668,8 +668,15 @@ case "$ACTIE" in
         echo "-- systemd-unit (her)installeren (stap 4)"
         "${SSH[@]}" "
             set -e
-            sudo cp ~/AudioController/$SERVICE /etc/systemd/system/$SERVICE
-            sudo chmod 777 ~/AudioController/run_audio_controller.sh
+            # De unit in de checkout bevat /home/pi-paden, maar niet elke locatie
+            # draait onder 'pi' (wierden gebruikt gergemwierden). Zonder deze
+            # omzetting wees ExecStart na een --full naar een niet-bestaand pad en
+            # startte de service niet meer -- aangetoond met testpi/.
+            sed \"s#/home/pi/AudioController#\$HOME/AudioController#g\" ~/AudioController/$SERVICE \
+                | sudo tee /etc/systemd/system/$SERVICE >/dev/null
+            # 755, niet 777: dit script wordt door de service als ROOT uitgevoerd, dus
+            # wereld-schrijfbaar betekent dat elke lokale gebruiker root kan worden.
+            sudo chmod 755 ~/AudioController/run_audio_controller.sh
             sudo systemctl daemon-reload
             sudo systemctl enable $SERVICE
         "
