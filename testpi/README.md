@@ -136,6 +136,29 @@ wierden van v9 naar v11 met 10 bronnen en 4 bestemmingen. Namen steeds identiek 
 pickle. Alle drie daarna service `active`, precies 1 instantie, `/` → 200 en
 `/psalmbord` → 302.
 
+### De testsuite draait op alle drie de Python-versies van het park
+
+De 266 tests zijn niet alleen lokaal (3.9) gedraaid, maar ook op de andere twee
+versies uit `docs/pi-specs.md`, elk in een schone container met een verse venv:
+
+| Python | tornado | uitkomst |
+|---|---|---|
+| 3.7.17 (west, noord) | 6.2 | 266 passed |
+| 3.9.6 lokaal (zuid) | 6.5.x | 266 passed |
+| 3.11.16 (wierden) | 6.5.8 | 266 passed |
+
+```bash
+docker run --rm -v "$PWD/audio_controller:/src:ro" python:3.11-slim bash -c '
+  printf "#!/bin/sh\nexit 0\n" > /usr/local/bin/sudo && chmod 755 /usr/local/bin/sudo
+  cp -r /src /work && cd /work && rm -rf *.egg-info
+  pip install -q -e . pytest && python -m pytest -q'
+```
+
+Die `sudo`-shim is nodig omdat de slim-images geen `sudo` hebben, terwijl
+`soundcard.ensure_loopback_card()` als root `sudo modprobe snd-aloop` aanroept —
+bij import al, via de module-level `Config()`. Op een Pi bestaat `sudo` wel; in een
+kale container valt het collecten anders om met `FileNotFoundError: 'sudo'`.
+
 ### De dependency-versies lopen per Pi uiteen
 
 `pip install --editable` upgradet niets dat al aan de eisen voldoet, dus een update
