@@ -20,7 +20,17 @@ import serial
 # internal
 from . import settings
 
-_last_time_get_serial = None
+_last_failed_open = None
+
+# Timeouts van de seriele poort; bewust asymmetrisch. Zie get_serial() voor het
+# waarom, en let op de afweging: scan_ports() doet deze reads synchroon in de
+# event loop, dus de LEEStimeout bepaalt hoe lang de hele server kan blokkeren als
+# het apparaat wel open is maar niet antwoordt (per scanronde hooguit 2 round-trips
+# x 2 pogingen). Daarom blijft die bescheiden. De SCHRIJFtimeout kost alleen tijd
+# als de uitvoerbuffer echt vol zit -- precies de tijdelijke bus-drukte waar het op
+# west op stukliep -- en mag daarom ruimer.
+SERIAL_READ_TIMEOUT = 0.15   # seconds
+SERIAL_WRITE_TIMEOUT = 0.5   # seconds
 
 main_logger = logging.getLogger("main")
 
@@ -45,13 +55,14 @@ def get_usb_port():
 
 def get_serial():
     """ seriele poort confguratie """
-    # only try to open the port every ... seconds
+    # Alleen na een MISLUKTE open even wachten. Dat beschermt tegen hameren op een
+    # adapter die er niet is, terwijl heropenen na een geslaagde open meteen mag.
+    # Voorheen werd elke poging geklokt, ook een geslaagde: viel de verbinding twee
+    # keer binnen 5 seconden weg, dan stond de bediening tot 5 seconden stil.
     retry_time = 5  # seconds
-    global _last_time_get_serial
-    if _last_time_get_serial is not None and _last_time_get_serial > dt.datetime.utcnow() - dt.timedelta(seconds=retry_time):
+    global _last_failed_open
+    if _last_failed_open is not None and _last_failed_open > dt.datetime.utcnow() - dt.timedelta(seconds=retry_time):
         return None
-
-    _last_time_get_serial = dt.datetime.utcnow()
 
     port = get_usb_port()
     result = serial.Serial()
@@ -61,16 +72,24 @@ def get_serial():
     result.parity = serial.PARITY_NONE
     result.stopbits = serial.STOPBITS_ONE
     result.port = port
-    result.timeout = 0.05  # seconds
-    result.write_timeout = 0.05  # seconds
+    # Een pakket is 5 bytes: op 19200 baud ~2,6 ms zendtijd. De 50 ms die hier stond
+    # was daarvoor ruim, maar niet voor de USB-bus: de pl2303 praat in bulk-transfers
+    # en deelt op de Pi een full-speed segment met de USB-audiocodec, waarvan het
+    # isochrone verkeer voorrang heeft. Een enkele keer schuift een transfer daardoor
+    # voorbij de 50 ms en liep de bediening vast op een timeout. (west, 2026-09-06)
+    result.timeout = SERIAL_READ_TIMEOUT  # seconds
+    result.write_timeout = SERIAL_WRITE_TIMEOUT  # seconds
     try:
         result.open()
-    except:
+    except Exception:
         msg = f"Cannot open serial port. Do you have permissions on {port}?"
         # possible solution: sudo chmod 666 /dev/ttyUSB0
         print(msg)
         main_logger.info(msg)
         result = None
+        _last_failed_open = dt.datetime.utcnow()
+    else:
+        _last_failed_open = None
     return result
 
 
@@ -85,6 +104,10 @@ class ITEC():
         """
         Write command and read result. Return result on success. Try once again if returned value is bad.
         Drop connection on exceptions, which may be recovered next call.
+
+        Een timeout is hierop de uitzondering: die betekent alleen dat de USB-bus
+        even bezet was, niet dat de adapter weg is. De poort blijft dan open en
+        alleen de buffers worden geleegd.
         """
         # try to create port again
         if self.serial is None:
@@ -107,11 +130,29 @@ class ITEC():
                 msg = "Trying again to send command to serial port"
                 print(msg)
                 main_logger.warning(msg)
+                # restanten van het mislukte antwoord weggooien, anders leest de
+                # tweede poging de staart van de eerste
+                self.serial.reset_input_buffer()
                 self.serial.write(packet)
                 result = self.serial.read(5)
                 if ack(result):
                     return result[3]
-        except:
+        except serial.SerialTimeoutException:
+            # De bus was even bezet. pyserial schrijft het pakket in stukjes en kan
+            # de timeout gooien nadat er al bytes weg zijn, dus er kan een half
+            # pakket onderweg zijn: buffers legen en het de volgende aanroep opnieuw
+            # proberen. De poort sluiten hoeft niet en kost de bediening onnodig tijd.
+            msg = "Timeout on serial port, buffers cleared. Retry next call."
+            print(msg)
+            main_logger.warning(msg)
+            try:
+                self.serial.reset_output_buffer()
+                self.serial.reset_input_buffer()
+            except Exception:
+                # lukt zelfs het legen niet, dan is er wel echt iets mis
+                self.serial = None
+            return None
+        except Exception:
             # something bad happened with the connection, do not try to recover here, but maybe next call
             msg = f"Exception while writing command to serial port. Try to recover next call. Exception: \n{traceback.format_exc()}"
             print(msg)
