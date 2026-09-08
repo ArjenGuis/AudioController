@@ -65,6 +65,11 @@ Only report the work as done after this live check passes.
 - `update_pi.sh` manages the Pi installs. The service runs as **root**, so the live
   config is in `/root/`. Restore settings via the admin-page JSON upload, not by
   copying files over ssh.
+- **Test a deploy on `testpi/` first, never on a church Pi.** `./testpi/start.sh west`
+  starts a local armv7l + Python 3.7.3 container (same as the Pis), loads the newest
+  west backup into it, and `eval "$(./testpi/start.sh --env)"` points `update_pi.sh` at
+  it. See `testpi/README.md` for what it does and does not replicate (systemd is a
+  shim; there is no ITEC, audio, GPIO or camera hardware).
 
 ## Conventions
 
