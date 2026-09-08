@@ -1,16 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="nl">
 <head>
+    <title>Psalmbord {{title}}</title>
     <meta charset="UTF-8">
-    <title>Psalmbord</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- The board's inline script uses only jQuery core; jQuery-UI, Bootstrap
          and FontAwesome were ~750 KB of unused assets on a low-power kiosk. -->
     <style>
         {{ css }}
     </style>
     <link rel='stylesheet' href="/static/css/psalmbord.css">
-
     <script src="/static/js/jquery-3.3.1.min.js"></script>
 </head>
 
@@ -20,7 +19,6 @@
 </body>
 
 <script>
-
     let url = window.location.origin + "/" + "psalmbord"
     let css = $("style")
     let container = $(".container")
@@ -112,7 +110,5 @@
 
 	resolution()
     update()
-
 </script>
-
 </html>

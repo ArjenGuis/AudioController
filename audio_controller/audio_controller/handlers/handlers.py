@@ -889,7 +889,7 @@ class Psalmbord(BaseHandler):
             self.redirect("/")
             return
         if settings.settings.enable_psalmbord:
-            self.render("psalmbord.html", css=self.get_css())
+            self.render("psalmbord.html", title=settings.settings.title, css=self.get_css())
         else:
             html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
             self.write(html)
