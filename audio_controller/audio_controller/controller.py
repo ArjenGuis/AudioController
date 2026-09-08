@@ -39,18 +39,9 @@ class Config:
         self.destinations = None
         self.url_in = None  # url currently streamed onto the IN port (used by scan_ports); None if none
 
-    def route_all_to_null(self):
+    def routes_all_to_null(self):
         """ route all IN ports of itec to null, meaning no sound will go through """
-        ports = [get_IN_port(s) for s in self.sources]
-        for p in ports:
-            itec.set_route(p, [])
-
-    def stop_all(self):
-        """ route all IN ports of itect to null, and stop reading from and sending to urls """
-        self.route_all_to_null()
-        self.read_from_url.update_url(None)
-        self.send_to_urls.update_urls([])
-        self.url_in = None
+        return [(get_IN_port(s), []) for s in self.sources]
 
     def get_selected_source(self):
         for source in self.sources:
@@ -58,12 +49,10 @@ class Config:
                 return source
         return None
 
-    def disable_unselected_sources(self, selected_port):
+    def routes_disable_unselected_sources(self, selected_port):
         # disable all IN ports which are not selected
         ports = [get_IN_port(s) for s in self.sources if not s.selected]
-        for p in ports:
-            if p != selected_port:
-                itec.set_route(p, [])
+        return [(p, []) for p in ports if p != selected_port]
 
     def get_input(self, selected_source):
         # determine all ports and urls for in and out
@@ -95,54 +84,120 @@ class Config:
                     ports_out.append(port_out)
         return ports_out, urls_out
 
-    def update_sources_destinations(self, sources: List[Source], destinations: List[Destination]):
-        """ 
-        Set routes on ITEC to route audio from selected sources to selected destinations.
-        Sources and destinations must all be enabled.
+    def plan_sources_destinations(self, sources: List[Source], destinations: List[Destination]):
+        """Bepaal wat er moet gebeuren, zonder I/O te doen.
+
+        Levert (routes, url_in, urls_out): de ITEC-route-opdrachten in de volgorde
+        waarin ze uitgevoerd moeten worden, plus de url-stream-doelen. Los van het
+        uitvoeren, zodat de seriele opdrachten in een keer naar de ITEC-thread
+        kunnen en het ffmpeg-werk op de hoofdthread blijft (dat forkt processen;
+        forken vanuit een worker-thread is een deadlock-risico).
+
+        url_in wordt hier al vastgelegd, niet pas bij apply_streams: scan_ports
+        leest hem, en tussen plannen en uitvoeren zit nu een await. Zo kan er geen
+        scanronde tussendoor glippen die nog de vorige stream meet.
         """
         self.sources = sources
         self.destinations = destinations
 
-        if not settings.settings.connect_source_destination or not destinations:
-            self.stop_all()
-            return
+        stop = (not settings.settings.connect_source_destination or not destinations
+                or self.get_selected_source() is None)
+        if stop:
+            self.url_in = None
+            return self.routes_all_to_null(), None, []
 
         selected_source = self.get_selected_source()
-
-        if selected_source is None:  # nothing selected
-            self.stop_all()
-            return None
-
         port_in, url_in = self.get_input(selected_source)
         self.url_in = url_in  # remember which url (if any) is on the IN port, for scan_ports (C1)
 
-        self.disable_unselected_sources(port_in)
-
+        routes = self.routes_disable_unselected_sources(port_in)
         ports_out, urls_out = self.get_outputs()
 
         if settings.settings.mute_sound:
             # Muting only affects the itec ports.
             # The url streams will be kept intact
-            self.route_all_to_null()
+            routes += self.routes_all_to_null()
         else:
-            itec.set_route(port_in, ports_out)
-        # start or stop playing url stream
+            routes.append((port_in, ports_out))
+        return routes, url_in, urls_out
+
+    def apply_streams(self, url_in, urls_out):
+        """Start of stop de url-streams. Hoort op de hoofdthread te draaien: dit
+        forkt ffmpeg-processen, en forken vanuit een worker-thread kan vastlopen."""
         self.read_from_url.update_url(url_in)
         self.send_to_urls.update_urls(urls_out)
 
 
 config = Config()
 
+# set_routes() is niet langer atomair: hij geeft de controle af terwijl de ITEC-thread
+# de routes zet. Zonder slot zouden twee gelijktijdige aanroepen (een bediener die
+# opslaat en auto_switch) elkaars plan half kunnen uitvoeren.
+_routes_lock = None
+_routes_lock_loop = None
 
-def set_routes():
-    """ Setup routes according settings (not taking into account setting auto_switch) """
+
+def _get_routes_lock():
+    """Het slot, aangemaakt in de draaiende loop.
+
+    Op Python 3.7 (de Pi) bindt asyncio.Lock() zich bij het aanmaken aan de dan
+    actuele event loop. Een slot op module-niveau lijkt te werken -- de onbetwiste
+    route raakt die binding niet eens aan -- maar zodra hij voor het eerst ECHT
+    betwist wordt gooit hij "got Future attached to a different loop". Precies in
+    het zeldzame geval waarvoor het slot bestaat. Dus lui aanmaken.
+    """
+    global _routes_lock, _routes_lock_loop
+    loop = asyncio.get_event_loop()
+    if _routes_lock is None or _routes_lock_loop is not loop:
+        _routes_lock = asyncio.Lock()
+        _routes_lock_loop = loop
+    return _routes_lock
+
+
+def apply_routes(routes):
+    """Zet de gegeven ITEC-routes. Blokkeert; draait op de seriele worker-thread."""
+    for channel, bus in routes:
+        itec.set_route(channel, bus)
+
+
+def _plan_routes():
+    """Het plan voor de huidige instellingen. Geen I/O."""
     enabled_sources = [s for s in settings.sources if s.enabled]
     enabled_destinations = [d for d in settings.destinations if d.enabled]
-    config.update_sources_destinations(enabled_sources, enabled_destinations)
+    return config.plan_sources_destinations(enabled_sources, enabled_destinations)
+
+
+def _finish_routes(url_in, urls_out):
+    """Afronding na de ITEC-opdrachten. Hoort op de hoofdthread te draaien."""
+    config.apply_streams(url_in, urls_out)
     config.current_levels.clear()
 
 
-def get_routes():
+async def set_routes():
+    """ Setup routes according settings (not taking into account setting auto_switch) """
+    async with _get_routes_lock():
+        routes, url_in, urls_out = _plan_routes()
+        await itec_module.run(apply_routes, routes)
+        _finish_routes(url_in, urls_out)
+
+
+def set_routes_blocking():
+    """set_routes() voor het opstarten, wanneer de event loop nog niet draait.
+
+    Deelt bewust dezelfde stappen als set_routes(), zodat de twee niet uit elkaar
+    kunnen lopen; alleen het uitvoeren gebeurt hier op de aanroepende thread.
+    """
+    routes, url_in, urls_out = _plan_routes()
+    apply_routes(routes)
+    _finish_routes(url_in, urls_out)
+
+
+def _read_routes(ports):
+    """Lees de routes van de gegeven poorten. Draait op de seriele worker-thread."""
+    return [(p, itec.get_route(p)) for p in ports]
+
+
+async def get_routes():
     """ Return the routes of the enabled IN ports as text """
     # TODO maybe it is better to return all ITEC IN ports, not only the enabled sources.
     result = f"Looking at usb port {itec_module.get_usb_port()}\n"
@@ -152,9 +207,27 @@ def get_routes():
     enabled_sources = [s for s in settings.sources if s.enabled]
     ports = list(set([get_IN_port(s) for s in enabled_sources]))
     result += "IN -> OUT\n"
-    for p in ports:
-        result += f"{p} -> {itec.get_route(p)}\n"
+    for p, route in await itec_module.run(_read_routes, ports):
+        result += f"{p} -> {route}\n"
     return result
+
+
+def ports_to_scan(sources):
+    """Welke (source, IN-poort) gemeten moeten worden. Leest niets uit, doet geen I/O."""
+    result = []
+    for source in sources:
+        if settings.is_IN_port(source.port_url):
+            result.append((source, settings.get_IN_port(source.port_url)))
+        elif settings.is_url(source.port_url) and config.url_in == source.port_url:
+            # TODO check if this source is currenly streamed on the IN port
+            # only then it can be updated, ignore otherwise (will be done maybe in next loop)
+            result.append((source, settings.get_IN_port(settings.settings.port_IN_for_streams)))
+    return result
+
+
+def _read_levels(ports):
+    """Lees de niveaus van de gegeven poorten. Draait op de seriele worker-thread."""
+    return [itec.get_input_level(p) for p in ports]
 
 
 async def scan_ports():
@@ -172,22 +245,14 @@ async def scan_ports():
                     del config.current_levels[source_id]
 
             # measure inputlevel by communicating with itec
-            for source in sources:
-                port = settings.get_IN_port(source.port_url)
-                if port is None:
-                    port = settings.get_IN_port(settings.settings.port_IN_for_streams)
-
-                if settings.is_IN_port(source.port_url):
-                    port = settings.get_IN_port(source.port_url)
-                    level = itec.get_input_level(port)
+            # De hele ronde gaat in EEN opdracht naar de seriele thread: dat houdt de
+            # event loop vrij (alle listeners delen er een) en de meting binnen een
+            # ronde bij elkaar, zonder dat er een route-wijziging tussendoor glipt.
+            te_meten = ports_to_scan(sources)
+            if te_meten:
+                levels = await itec_module.run(_read_levels, [p for _, p in te_meten])
+                for (source, _), level in zip(te_meten, levels):
                     config.current_levels[source.id] = {'level': level, 'threshold': source.db_level, 'prio': source.scan_prio}
-                elif settings.is_url(source.port_url):
-                    if config.url_in == source.port_url:
-                        # TODO check if this source is currenly streamed on the IN port
-                        # only then it can be updated, ignore otherwise (will be done maybe in next loop)
-                        port = settings.get_IN_port(settings.settings.port_IN_for_streams)
-                        level = itec.get_input_level(port)
-                        config.current_levels[source.id] = {'level': level, 'threshold': source.db_level, 'prio': source.scan_prio}
 
         except Exception as e:
             # log instead of silently swallowing (C2); keep the loop alive
@@ -243,7 +308,7 @@ async def auto_switch():
                     print(msg)
                     main_logger.info(msg)
                     settings.save()
-                    set_routes()
+                    await set_routes()
 
         except Exception as e:
             # log instead of silently swallowing (C2); keep the loop alive

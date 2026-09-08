@@ -8,8 +8,12 @@ See for more info the ITEC manuals at https://www.itec-audio.com/downloads/anlei
 """
 # standard lib
 import sys, os, time
+import asyncio
 import datetime as dt
+import functools
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 import logging
 import traceback
@@ -22,15 +26,38 @@ from . import settings
 
 _last_failed_open = None
 
-# Timeouts van de seriele poort; bewust asymmetrisch. Zie get_serial() voor het
-# waarom, en let op de afweging: scan_ports() doet deze reads synchroon in de
-# event loop, dus de LEEStimeout bepaalt hoe lang de hele server kan blokkeren als
-# het apparaat wel open is maar niet antwoordt (per scanronde hooguit 2 round-trips
-# x 2 pogingen). Daarom blijft die bescheiden. De SCHRIJFtimeout kost alleen tijd
-# als de uitvoerbuffer echt vol zit -- precies de tijdelijke bus-drukte waar het op
-# west op stukliep -- en mag daarom ruimer.
+# Timeouts van de seriele poort; bewust asymmetrisch. Een pakket is 5 bytes en heeft
+# op 19200 baud ~2,6 ms zendtijd nodig; de rest is speling voor de USB-bus (zie
+# get_serial()). De schrijftimeout is het ruimst omdat die het op west begaf en
+# alleen tijd kost als de uitvoerbuffer echt vol zit.
 SERIAL_READ_TIMEOUT = 0.15   # seconds
 SERIAL_WRITE_TIMEOUT = 0.5   # seconds
+
+
+# Alle seriele I/O loopt over EEN vaste worker-thread. Dat lost twee dingen tegelijk
+# op. Ten eerste blokkeert de event loop niet meer op de poort: alle listeners delen
+# er een, dus een trage ITEC legde ook de camera-app en het psalmbord stil. Ten
+# tweede voert precies een worker de opdrachten in volgorde en volledig uit, zodat
+# twee gelijktijdige route-wijzigingen elkaar niet half kunnen overschrijven -- wat
+# met alleen een slot per commando wel zou kunnen.
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="itec")
+
+# Vangnet. Spreekt er ergens toch nog iets de poort rechtstreeks vanuit de loop-thread
+# aan, dan kunnen twee threads in elk geval niet halverwege elkaars pakket schrijven.
+# Zolang alles via run() loopt is dit slot onbelast en kost het niets.
+_port_lock = threading.RLock()
+
+
+async def run(func, *args, **kwargs):
+    """Voer een blokkerende ITEC-aanroep uit op de seriele worker-thread.
+
+    Elke aanroep vanuit de draaiende event loop hoort hier langs te gaan; wat er
+    binnen een enkele aanroep gebeurt, gebeurt ononderbroken.
+    """
+    if args or kwargs:
+        func = functools.partial(func, *args, **kwargs)
+    return await asyncio.get_event_loop().run_in_executor(_executor, func)
+
 
 main_logger = logging.getLogger("main")
 
@@ -108,7 +135,14 @@ class ITEC():
         Een timeout is hierop de uitzondering: die betekent alleen dat de USB-bus
         even bezet was, niet dat de adapter weg is. De poort blijft dan open en
         alleen de buffers worden geleegd.
+
+        Blokkeert; hoort daarom vanuit de event loop via itec.run() aangeroepen te
+        worden. Het slot is het vangnet voor paden die dat niet doen.
         """
+        with _port_lock:
+            return self._write_read_locked(command, r_value, value)
+
+    def _write_read_locked(self, command, r_value, value):
         # try to create port again
         if self.serial is None:
             self.serial = get_serial()

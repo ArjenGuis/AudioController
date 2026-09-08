@@ -470,7 +470,7 @@ class General(BaseHandler):
         elif action == "setSettings":
             args = self.body_to_json()
             settings.update_settings(args)
-            controller.set_routes()
+            await controller.set_routes()
             loggers.enable(settings.settings.enable_logging)
             write_settings()
             await notify_change()
@@ -560,7 +560,7 @@ class Audio(BaseHandler):
             args = self.body_to_json()
             sources = args.get("sources", [])
             settings.update_sources(sources)
-            controller.set_routes()
+            await controller.set_routes()
             write_sources()
             await notify_change()
             return
@@ -573,7 +573,7 @@ class Audio(BaseHandler):
             args = self.body_to_json()
             destinations = args.get("destinations", [])
             settings.update_destinations(destinations)
-            controller.set_routes()
+            await controller.set_routes()
             write_destinations()
             await notify_change()
             return
@@ -590,7 +590,7 @@ class Audio(BaseHandler):
             return
 
         elif action == "getRoutes":
-            self.write(controller.get_routes())
+            self.write(await controller.get_routes())
             return
 
 
