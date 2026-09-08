@@ -62,12 +62,25 @@
         })
     }
 
+    function boardHeight(){
+        // 100vh is op een telefoon de viewport ZONDER browserbalk (de "large viewport"),
+        // terwijl er minder zichtbaar is; in de responsive mode van devtools is er geen
+        // browserbalk en zijn ze wel gelijk. Vandaar dat een echte telefoon anders rendert
+        // dan de emulator. Meet daarom de werkelijk zichtbare hoogte en reken daarmee.
+        // Op een kioskscherm is innerHeight gelijk aan 100vh, dus daar verandert niets.
+        document.documentElement.style.setProperty("--boardh", window.innerHeight + "px")
+    }
+
     function alignment(){
         // bereken per regel de resterende breedte van kolom 3
         container.find(".regel").each(function(){
             var regel = $(this).innerWidth()
             var col2 = $(this).find(".col2").outerWidth()
-            
+
+            // eerder gezette breedtes eerst wissen, anders meten we hieronder onze
+            // eigen vorige uitkomst (alignment draait ook opnieuw zonder nieuwe content)
+            $(this).find(".col1, .col3").css("width", "")
+
             // breedte van col1 en col3 instellen, mits er een col2 bestaat
             if( col2 !== undefined ){
                 var col1 = $(this).find(".col1").outerWidth()
@@ -108,6 +121,18 @@
         }
 	}
 
+    var resizeTimeout
+    $(window).on("resize orientationchange", function(){
+        // op een telefoon verandert de zichtbare hoogte als de browserbalk in- of
+        // uitschuift; even wachten tot dat uitgeanimeerd is
+        clearTimeout(resizeTimeout)
+        resizeTimeout = setTimeout(function(){
+            boardHeight()
+            alignment()
+        }, 200)
+    })
+
+    boardHeight()
 	resolution()
     update()
 </script>
