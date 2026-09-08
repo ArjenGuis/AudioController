@@ -43,10 +43,27 @@ dezelfde container is snel, want dan staat de venv er al — net als op een echt
 
 ## Waarom dit realistisch genoeg is
 
-De container is **armv7l met Python 3.7.3**, precies zoals west (Raspbian buster).
-Dat is geen detail: `pip install` haalt op armv7 andere wheels dan op arm64 of x86,
-en pakketten zonder wheel worden daar vanaf broncode gebouwd. Juist dát is wat een
-deploy op een Pi kan laten stranden, en dat wordt hier dus echt getest.
+De container draait een 32-bit ARM-userland met **dezelfde Python als de doel-Pi**.
+Dat is geen detail: `pip install` haalt op ARM andere wheels dan op arm64 of x86, en
+pakketten zonder wheel worden vanaf broncode gebouwd. Juist dát is wat een deploy op
+een Pi laat stranden.
+
+Het basis-image volgt daarom de locatie:
+
+| locatie | image | Python |
+|---|---|---|
+| west, noord | `arm32v7/debian:buster` | 3.7 |
+| zuid | `balenalib/rpi-raspbian:bullseye` | 3.9 |
+| wierden | `arm32v7/debian:bookworm` | 3.11 |
+
+Overschrijven kan met `TESTPI_BASE=...`.
+
+Voor zuid wordt bewust een Raspbian-image gebruikt: Debian bullseye is op dit moment
+midden in de archivering (de live-mirror geeft 404 op de pakketten, en
+`archive.debian.org` heeft nog geen `bullseye-security`), en Raspbian is voor deze
+Pi's sowieso getrouwer. Let op dat dat image zich als `armv6l` meldt terwijl zuid
+`armv7l` is; piwheels bedient die twee apart, dus een pakket kan daar in theorie een
+andere wheel krijgen.
 
 Echt in deze opzet: ssh, rsync, sudo, de venv, `pip install --editable`, de
 pre-deploy backup, de sync van package/scripts/kiosk-launcher, en de rollback.
@@ -101,20 +118,37 @@ er op een Pi zonder (of met een hernummerde) geluidskaart zou gebeuren.
 
 Elke locatie heeft een ander vertrekpunt, en dus een ander upgradepad:
 
-| | versie op de Pi | config | migratie | app-gebruiker |
-|---|---|---|---|---|
-| west | 1.5.0 | JSON v11 | geen | `pi` |
-| noord | 1.0 | pickle **v8** | v8 → 9 → 10 → 11 | `pi` |
-| wierden | 1.3 | pickle **v9** | v9 → 10 → 11 | **`gergemwierden`** |
+| | versie op de Pi | Python | config | migratie | app-gebruiker |
+|---|---|---|---|---|---|
+| west | 1.5.0 | 3.7 | JSON v11 | geen | `pi` |
+| noord | 1.0 | 3.7 | pickle **v8** | v8 → 9 → 10 → 11 | `pi` |
+| zuid | 1.3 | **3.9** | pickle **v9** | v9 → 10 → 11 | `pi` |
+| wierden | 1.3 | **3.11** | pickle **v9** | v9 → 10 → 11 | **`gergemwierden`** |
 
 Met alleen west zou de **pickle → JSON-migratie** helemaal niet getest zijn; die was
 op west al gebeurd. Juist daar zat eerder een bug (de v9-migratie die alle
 instellingen resette, `1202acc`). Test daarom bij voorkeur tegen noord of wierden
 voordat je die Pi's bijwerkt.
 
-Uitkomst van die test: de migratie klopt. noord kwam van v8 naar v11 met 26 bronnen,
-7 bestemmingen en dezelfde namen; wierden van v9 naar v11 met 10 bronnen en 4
-bestemmingen. Beide daarna service `active`, `/` → 200 en `/psalmbord` → 302.
+Uitkomst van die test: de migratie klopt op alle drie. noord ging van v8 naar v11 met
+26 bronnen en 7 bestemmingen; zuid van v9 naar v11 met 20 bronnen en 6 bestemmingen;
+wierden van v9 naar v11 met 10 bronnen en 4 bestemmingen. Namen steeds identiek aan de
+pickle. Alle drie daarna service `active`, precies 1 instantie, `/` → 200 en
+`/psalmbord` → 302.
+
+### De dependency-versies lopen per Pi uiteen
+
+`pip install --editable` upgradet niets dat al aan de eisen voldoet, dus een update
+laat bestaande versies staan. Wat er nu draait tegenover wat een VERSE venv oplevert:
+
+| | nu op de Pi | verse venv |
+|---|---|---|
+| west, noord (3.7) | tornado 6.1, python-socketio 5.3.0 | tornado 6.2, socketio 5.11.0 |
+| zuid (3.9) | tornado 6.3.2, python-socketio 5.8.0 | tornado 6.5.8, socketio 5.16.4 |
+
+Die verschillen blijven dus bestaan, en ze zijn niet academisch: Tornado 6.1 en 6.5
+gedragen zich aantoonbaar anders (6.1 weigert een tweede `IOLoop(make_current=True)`
+zolang de vorige nog 'current' is). Test bij twijfel tegen de Python van de doel-Pi.
 
 ### Terugrollen van een pickle-locatie is niet vanzelf veilig
 

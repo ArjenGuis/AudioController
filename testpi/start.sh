@@ -23,7 +23,21 @@ set -eo pipefail
 cd "$(dirname "$0")/.."
 
 NAME=testpi
-IMAGE=audiocontroller-testpi:buster
+# De vier Pi's draaien vier OS/Python-combinaties; het basis-image volgt de locatie,
+# anders test je de venv- en pip-stap op de verkeerde Python.
+#   west, noord -> buster   (3.7)
+#   zuid        -> bullseye (3.9)
+#   wierden     -> bookworm (3.11)
+basis_voor() {
+    case "$1" in
+        # Debian bullseye wordt op dit moment gearchiveerd: de live-mirror geeft 404
+        # op de pakketten en archive.debian.org heeft nog geen bullseye-security. Het
+        # Raspbian-image werkt wel, en is voor deze Pi's sowieso getrouwer.
+        zuid)    echo "balenalib/rpi-raspbian:bullseye" ;;
+        wierden) echo "arm32v7/debian:bookworm" ;;
+        *)       echo "arm32v7/debian:buster" ;;
+    esac
+}
 SSH_PORT="${TESTPI_SSH_PORT:-2223}"
 HTTP_PORT="${TESTPI_HTTP_PORT:-18080}"
 INT_PORT="${TESTPI_INT_PORT:-15000}"
@@ -73,8 +87,10 @@ STAMP="${2:-}"
 
 [ -f "$KEY.pub" ] || { echo "Publieke sleutel niet gevonden: $KEY.pub (zet KEY=...)"; exit 2; }
 
-echo "-- image bouwen ($IMAGE, linux/arm/v7 zoals west)"
-docker build --platform linux/arm/v7 -t "$IMAGE" testpi/ >/dev/null
+BASE="${TESTPI_BASE:-$(basis_voor "$LOC")}"
+IMAGE="audiocontroller-testpi:${BASE##*:}"
+echo "-- image bouwen ($IMAGE op $BASE, linux/arm/v7 net als de Pi's)"
+docker build --platform linux/arm/v7 --build-arg "BASE=$BASE" -t "$IMAGE" testpi/ >/dev/null
 
 echo "-- container starten (ssh :$SSH_PORT, extern :$HTTP_PORT, intern :$INT_PORT)"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
