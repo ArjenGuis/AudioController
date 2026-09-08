@@ -356,7 +356,7 @@ $(function() {
 					return;
 				}
 
-				$('#footer .streampublish input').attr('checked', $response.success)
+				$('#footer .streampublish input').prop('checked', $response.success)
 
 				// !! zodat elke falsy waarde "geen uitzending" betekent, zoals voorheen;
 				// null blijft gereserveerd voor "nog onbekend"
