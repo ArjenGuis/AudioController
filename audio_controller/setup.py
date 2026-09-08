@@ -58,6 +58,13 @@ setuptools.setup(
         "python-decouple>=3.6",
         "onvif-zeep>=0.2.12",
         "requests>=2.31,<3",
+        # lxml komt via onvif-zeep -> zeep en stond ongepind. De Pi's draaien
+        # Python 3.7 op armv7 en halen hun wheels van piwheels; daar houdt lxml
+        # bij 5.2.x op. Zonder deze grens kiest pip op een VERSE Pi-installatie
+        # de nieuwste lxml, vindt geen wheel, bouwt vanaf broncode en strandt op
+        # ontbrekende libxml2/libxslt-dev. Bestaande Pi's merken het niet: daar
+        # staat 5.2.2 al en pip laat die met rust. Getest met testpi/.
+        "lxml<5.3",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

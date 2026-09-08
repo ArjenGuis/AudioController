@@ -30,6 +30,8 @@
 # BACKUP_DIR=/pad      overschrijft de backup-map (standaard ~/AudioController_pi_backups).
 # KEEP_BACKUPS=N       houd alleen de N nieuwste backups per locatie (standaard 0 = alles bewaren).
 # TEST_HOST=u@h:p      richt alle acties op een ander adres (alleen om het script te testen).
+# HTTP_PORT=N          poort voor de healthcheck (standaard 8080); nodig als je tegen de
+#                      lokale testcontainer draait waar 8080 al bezet kan zijn (zie testpi/).
 #
 # Preflight (update/full): pytest moet slagen (--no-tests om over te slaan), main.js moet
 # nieuwer zijn dan de transcrypt-bronnen (--skip-frontend-check), en de Pi moet bereikbaar
@@ -79,6 +81,9 @@ cd "$(dirname "$0")"
 
 KEY="${KEY:-$HOME/.ssh/rpi_ed25519}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/AudioController_pi_backups}"
+# externe poort van de app; instelbaar zodat de healthcheck ook tegen de lokale
+# testcontainer kan draaien (zie testpi/)
+HTTP_PORT="${HTTP_PORT:-8080}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-0}"   # 0 = alle backups bewaren; >0 = alleen de N nieuwste houden
 SERVICE=audio_controller.service
 REMOTE_APP="~/AudioController/audio_controller/audio_controller"
@@ -224,11 +229,14 @@ if [ -z "$ACTIE" ]; then
 fi
 
 healthcheck() {
-    local code_root code_bord
-    code_root=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://$PI_HOST:8080/" || echo 000)
-    code_bord=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://$PI_HOST:8080/psalmbord" || echo 000)
-    echo "http://$PI_HOST:8080/          -> $code_root  (verwacht: 200; 000 = niet bereikbaar vanaf hier)"
-    echo "http://$PI_HOST:8080/psalmbord -> $code_bord  (302 = login actief, nieuw gedrag; 200 = oude versie draait nog)"
+    local code_root code_bord base
+    base="http://$PI_HOST:$HTTP_PORT"
+    # curl schrijft bij een mislukte verbinding zelf al '000'; een extra `|| echo 000`
+    # plakte daar een tweede 000 achter ("-> 000000")
+    code_root=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/"); code_root=${code_root:-000}
+    code_bord=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/psalmbord"); code_bord=${code_bord:-000}
+    echo "$base/          -> $code_root  (verwacht: 200; 000 = niet bereikbaar vanaf hier)"
+    echo "$base/psalmbord -> $code_bord  (302 = login actief, nieuw gedrag; 200 = oude versie draait nog)"
 }
 
 service_home() {
@@ -248,7 +256,19 @@ check_instance() {
     # service) betekent poortconflicten en/of een tweede, afwijkende settings-file.
     echo "-- controle: draaiende instantie(s)"
     "${SSH[@]}" '
-        pids=$(pgrep -f "^python3 -m audio_controller$" | tr "\n" " ")
+        # Patroon zonder ^-anker en met ruimte voor vlaggen: run_audio_controller.sh
+        # start python met -u (ongebufferde stdout), en "^python3 -m audio_controller$"
+        # matchte dat niet meer -> "geen proces gevonden" na elke herstart.
+        pids=$(pgrep -f "python3( -[^ ]+)* -m audio_controller$" | tr "\n" " ")
+        # Alleen de hoofdprocessen tellen: de app forkt zichzelf voor de url-streams en
+        # die kinderen matchen hetzelfde patroon. Op west gaf dat 3 treffers en dus een
+        # valse "WAARSCHUWING: 3 instanties".
+        top=""
+        for p in $pids; do
+            pp=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d " ")
+            case " $pids " in *" $pp "*) ;; *) top="$top $p" ;; esac
+        done
+        pids=$(echo $top)
         n=$(echo $pids | wc -w)
         for p in $pids; do
             u=$(ps -o user= -p "$p" | tr -d " ")
@@ -573,11 +593,14 @@ case "$ACTIE" in
             echo \"host:     \$(hostname)\"
             grep -h __version__ $REMOTE_APP/__init__.py 2>/dev/null | head -1 | sed 's/^/versie:   /' || true
             [ -f ~/AudioController/deploy_info.txt ] && sed 's/^/deploy:   /' ~/AudioController/deploy_info.txt || echo 'deploy:   (geen deploy_info.txt; van voor dit script)'
-            pyver=\$(~/AudioController/pyenv/bin/python --version 2>&1 | awk '{print \$2}')
-            [ -z \"\$pyver\" ] && pyver=\$(python3 --version 2>&1 | awk '{print \$2}')
+            # zonder venv geeft 'python --version' een foutmelding; daar mag geen
+            # versienummer uit gedestilleerd worden (gaf eerder 'python:   line')
+            pybin=~/AudioController/pyenv/bin/python; pynote=''
+            if [ ! -x \"\$pybin\" ]; then pybin=\$(command -v python3); pynote='  (geen venv; systeem-python)'; fi
+            pyver=\$(\"\$pybin\" --version 2>&1 | awk '{print \$2}')
             case \"\$pyver\" in
-                3.[0-7].*|3.[0-7]) echo \"python:   \$pyver  LET OP: < 3.8 -> cookies met SameSite falen (login/logout 500, issue #16 werkt via compat-fix; overweeg OS/Python-upgrade)\" ;;
-                *) echo \"python:   \$pyver\" ;;
+                3.[0-7]|3.[0-7].*) echo \"python:   \$pyver\$pynote  LET OP: < 3.8 -> cookies met SameSite falen (login/logout 500, issue #16 werkt via compat-fix; overweeg OS/Python-upgrade)\" ;;
+                *) echo \"python:   \$pyver\$pynote\" ;;
             esac
             echo \"service:  \$(systemctl is-active $SERVICE 2>/dev/null || true), sinds \$(systemctl show -p ActiveEnterTimestamp --value $SERVICE 2>/dev/null || echo '?')\"
             echo \"uptime:  \$(uptime)\"
