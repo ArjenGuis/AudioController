@@ -8,6 +8,7 @@ import math
 import datetime as dt
 import time
 import json
+import http.cookies
 from json import dumps
 from pathlib import Path
 #import traceback
@@ -24,7 +25,7 @@ import tornado.ioloop
 # import tornado.websocket
 
 # internals
-from audio_controller import settings, controller, user, loggers, gpio, psalmbord, __version__
+from audio_controller import settings, controller, user, loggers, gpio, psalmbord, fonts, __version__
 
 here = Path(os.path.dirname(__file__)).resolve()
 main_logger = logging.getLogger("main")
@@ -44,6 +45,29 @@ async def _run_blocking(func):
     except Exception:
         main_logger.exception("camera device call failed")
         raise
+
+
+# 'samesite' is only a valid http.cookies.Morsel attribute on Python 3.8+; the Pi
+# runs 3.7, where sending it raises CookieError (500). Detect support once. (#16)
+_SAMESITE_SUPPORTED = "samesite" in http.cookies.Morsel()
+
+
+_LOCAL_HOSTNAMES = ("localhost", "127.0.0.1", "::1", "ip6-localhost")
+
+
+def _host_is_local(host):
+    """True if an HTTP Host header names a loopback address (S-M2). Strips an
+    optional :port and IPv6 brackets. Used only to confirm loopback trust, so it
+    fails closed for anything it cannot parse."""
+    if not host:
+        return False
+    host = host.strip()
+    # strip a trailing :port, but not the colons inside a bracketed IPv6 literal
+    if host.startswith("["):
+        host = host.split("]", 1)[0].lstrip("[")
+    else:
+        host = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+    return host.lower() in _LOCAL_HOSTNAMES
 
 
 # --- simple in-memory login throttling (E: brute-force hardening) ---
@@ -71,6 +95,13 @@ def _login_record_failure(username):
 
 def _login_reset(username):
     _login_failures.pop(username, None)
+
+
+def _lockout_key(username, remote_ip):
+    """Throttle key for a login attempt. Keyed on the client address, NOT the
+    (attacker-supplied) username, so a flood of failures for `admin` cannot lock
+    the real admin out from a different client (remote DoS). (S-M5)"""
+    return remote_ip or "unknown"
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -118,8 +149,15 @@ class BaseHandler(tornado.web.RequestHandler):
         # httponly: the auth cookie is used server-side only, so keeping it out of
         # document.cookie limits session theft via any XSS; samesite=Lax is extra
         # CSRF hardening. (No secure=True: the app is served over plain HTTP.)
-        self.set_secure_cookie("audio_controller_user", username.encode("utf-8"),
-                               httponly=True, samesite="Lax")
+        #
+        # http.cookies.Morsel only accepts the 'samesite' attribute on Python 3.8+.
+        # The Pi runs Python 3.7, where passing samesite raises CookieError and
+        # 500s EVERY login and logout (issue #16). So only send samesite where the
+        # runtime supports it; httponly still applies everywhere. (#16)
+        kwargs = {"httponly": True}
+        if _SAMESITE_SUPPORTED:
+            kwargs["samesite"] = "Lax"
+        self.set_secure_cookie("audio_controller_user", username.encode("utf-8"), **kwargs)
 
     def logged_in(self):
         """Return True if user is logged in, False otherwise."""
@@ -139,7 +177,13 @@ class BaseHandler(tornado.web.RequestHandler):
         gets the same login wall as the external port."""
         if not self.application.settings.get("internal", False):
             return False
-        return self.request.remote_ip in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+        if self.request.remote_ip not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            return False
+        # DNS-rebinding defence (S-M2): the kiosk browser runs on the Pi, so a
+        # page an attacker lures it to connects from a loopback peer but carries
+        # the attacker's Host header. Require the Host to be a loopback name too,
+        # so a rebound request (foreign Host) falls back to the login wall.
+        return _host_is_local(self.request.host)
 
     def write_login_exception(self):
         self.write(dumps({"LoginException": "Please login first"}))
@@ -192,8 +236,11 @@ def get_js_filename():
 
 class StaticFileHandler(tornado.web.StaticFileHandler):
     def set_extra_headers(self, path):
-        # Disable cache
-        self.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        # Allow the browser to cache but always revalidate (P2). Tornado sends an
+        # ETag and answers a matching If-None-Match with 304/0 bytes, so an
+        # unchanged asset is not re-downloaded. main-<ts>.js is already
+        # content-addressed, so a stale bundle is never served after an update.
+        self.set_header("Cache-Control", "no-cache")
 
 
 class Main(BaseHandler):
@@ -222,7 +269,9 @@ class Login(BaseHandler):
     
     def get_user(self, username, password = None):
         for usr in settings.users:
-            if username != usr.username:
+            # check usernames case-insensitive; str() so a corrupt (None) stored
+            # username cannot crash the login path with a 500 (#17)
+            if str(username).lower() != str(usr.username).lower():
                 continue
             if password is None or user.verify_password(password, usr.password):
                 # transparently upgrade a legacy unsalted hash to a salted one on
@@ -231,6 +280,12 @@ class Login(BaseHandler):
                     usr.password = user.hash_password(password)
                     settings.save()
                 return usr
+            return False
+        # No such username. Verify against a fixed dummy hash so an unknown user
+        # costs the same PBKDF2 work as a real one and timing cannot enumerate
+        # usernames. (S-M5)
+        if password is not None:
+            user.verify_password(password, user.DUMMY_HASH)
         return False
 
     async def post(self):
@@ -238,7 +293,10 @@ class Login(BaseHandler):
 
         # User administration must not be reachable without authentication (S8).
         # login / logout / login_required stay open; the rest needs login, and
-        # listing or modifying users needs admin.
+        # listing or modifying users needs admin. On the trusted loopback listener
+        # (login_required() False) the local operator UI manages accounts without
+        # login by design; the internet-facing port requires it. The remote
+        # loopback-abuse path (DNS rebinding) is closed by the Host check (S-M2).
         if action in ("setUsers", "getUsers", "setUser"):
             if self.login_required() and not self.logged_in():
                 self.write(dumps({"success": False, "LoginException": "Please login first"}))
@@ -278,33 +336,35 @@ class Login(BaseHandler):
             # else: try login if arguments are provided
             args = self.body_to_json()
             # if 'username' in args and 'password' in args:
-            username = str(args.get("username"))
+            username = str(args.get("username")).strip()
             password = str(args.get("password"))
-            # brute-force throttling on the external port (E)
-            if self.login_required() and _login_locked(username):
-                msg = f"Login temporarily locked for user {username}"
+            # brute-force throttling on the external port, keyed on the client
+            # address so it cannot be abused to lock the admin account (E, S-M5)
+            lock_key = _lockout_key(username, self.request.remote_ip)
+            if self.login_required() and _login_locked(lock_key):
+                msg = f"Login temporarily locked for client {self.request.remote_ip}"
                 print(msg)
                 main_logger.info(msg)
                 self.write(dumps({"success": False,
                                   "error": "Te veel mislukte pogingen, probeer het later opnieuw"}))
                 return
             if self.check_user(username, password):
-                _login_reset(username)
+                usr = self.get_user(username)
+                username = usr.username  # reset username from storage; login is case-insensitive
+                _login_reset(lock_key)
                 msg = f"Login user {username}"
                 print(msg)
                 main_logger.info(msg)
                 self.set_cookie_username(username)  # assumes unique usernames
-                usr = self.get_user(username)
                 self.write(dumps({"success": True,
                                   "must_change_password": bool(usr and usr.must_change_password)}))
             else:
-                _login_record_failure(username)
+                _login_record_failure(lock_key)
                 msg = f"Login failed for user {username}"
                 print(msg)
                 main_logger.info(msg)
                 self.write(dumps({
                     "success": False,
-                    #"error": msg
                 }))
 
         elif action == "logout":
@@ -318,8 +378,11 @@ class Login(BaseHandler):
             users = args.get("users", [])
             try:
                 settings.update_users(users)
+            except ValueError as e:
+                # e.g. duplicate usernames, or a new/renamed user without a password
+                self.write(dumps({"success": False, "error": str(e)}))
+                return
             except Exception:
-                # e.g. duplicate usernames are rejected by update_users
                 self.write(dumps({"success": False, "error": "Ongeldige gebruikerslijst"}))
                 return
             write_users()
@@ -335,7 +398,7 @@ class Login(BaseHandler):
 
             # Reject weak/default passwords so the forced first-login change (and
             # any self-service change) cannot re-set the shipped default. (E)
-            if new_password.lower() in ("admin", "password") or new_password == new_username:
+            if user.is_weak_password(new_password, new_username):
                 self.write(dumps({"success": False,
                                   "error": "Kies een sterker wachtwoord"}))
                 return
@@ -374,6 +437,10 @@ class General(BaseHandler):
     async def post(self):
         action = get_action(self.request.path)
 
+        # The loopback listener is the trusted local-operator UI, so these run
+        # without login there; the internet-facing port requires login+admin. The
+        # remote loopback-abuse path (DNS rebinding) is closed by the Host check
+        # in is_localhost (S-M2).
         if self.login_required() and not self.logged_in():
             self.write(dumps({"success": False}))
             return
@@ -403,7 +470,7 @@ class General(BaseHandler):
         elif action == "setSettings":
             args = self.body_to_json()
             settings.update_settings(args)
-            controller.set_routes()
+            await controller.set_routes()
             loggers.enable(settings.settings.enable_logging)
             write_settings()
             await notify_change()
@@ -493,7 +560,7 @@ class Audio(BaseHandler):
             args = self.body_to_json()
             sources = args.get("sources", [])
             settings.update_sources(sources)
-            controller.set_routes()
+            await controller.set_routes()
             write_sources()
             await notify_change()
             return
@@ -506,7 +573,7 @@ class Audio(BaseHandler):
             args = self.body_to_json()
             destinations = args.get("destinations", [])
             settings.update_destinations(destinations)
-            controller.set_routes()
+            await controller.set_routes()
             write_destinations()
             await notify_change()
             return
@@ -523,7 +590,7 @@ class Audio(BaseHandler):
             return
 
         elif action == "getRoutes":
-            self.write(controller.get_routes())
+            self.write(await controller.get_routes())
             return
 
 
@@ -533,10 +600,12 @@ class CameraApp(tornado.web.RequestHandler):
         self.xsrf_token
 
     def get(self):
-        if settings.settings.enable_psalmbord:
+        # font-family is rendered into a <style> block on this unauthenticated
+        # page; only an allowlisted font name may pass, otherwise a stored bad
+        # value could inject CSS. Fall back to a safe default. (S-M7)
+        font = 'Segoe UI'
+        if settings.settings.enable_psalmbord and fonts.validate_font_name(settings.pb.fontfamily):
             font = settings.pb.fontfamily
-        else:
-            font = 'Segoe UI'
 
         if settings.settings.enable_camera:
             self.render("camera.html", title=settings.settings.title, font=font)
@@ -820,7 +889,7 @@ class Psalmbord(BaseHandler):
             self.redirect("/")
             return
         if settings.settings.enable_psalmbord:
-            self.render("psalmbord.html", css=self.get_css())
+            self.render("psalmbord.html", title=settings.settings.title, css=self.get_css())
         else:
             html = """<!DOCTYPE html><html><body style="background-color: black;"></body></html>"""
             self.write(html)
@@ -833,12 +902,19 @@ class Psalmbord(BaseHandler):
         if settings.settings.enable_psalmbord:
             kwargs = self.body_to_json()
             if kwargs.get("html"):
-                result = {
-                    "html": settings.pb.psalmbord_as_html(),
-                    "css": self.get_css(),
-                    "active": settings.pb.active,
-                    "refreshrate": settings.pb.refreshrate
-                }
+                if kwargs.get("html_hash") != settings.pb.html_hash:
+                    result = {
+                        "html": settings.pb.psalmbord_as_html(),
+                        "html_hash": settings.pb.html_hash,
+                        "css": self.get_css(),
+                        "refreshrate": settings.pb.refreshrate
+                    }
+                else:
+                    result = {
+                        "css": self.get_css(),
+                        "refreshrate": settings.pb.refreshrate
+                    }
+                
                 self.write(dumps(result))
             else:
                 self.write(dumps(asdict(settings.pb)))

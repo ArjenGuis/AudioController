@@ -1,5 +1,6 @@
 /docs/*
 deploy
+!/docs/pi-specs.md
 !/docs/pictures
 /docs/pictures/*
 !/docs/pictures/screenshot_1.png

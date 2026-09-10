@@ -9,6 +9,11 @@ cd "$(dirname "$0")"
 
 source pyenv/bin/activate
 cd audio_controller
-python3 -m audio_controller
+# -u: ongebufferde stdout. Zonder dit is stdout naar journald (een pipe) blok-
+# gebufferd en krijgen alle print()-regels het tijdstip van de bufferflush in
+# plaats van dat van de gebeurtenis. Op west stonden daardoor 20+ ongerelateerde
+# regels op dezelfde seconde, waardoor de journal niet te gebruiken was om een
+# storing terug te zoeken.
+python3 -u -m audio_controller
 cd ..
 deactivate

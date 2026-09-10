@@ -1,0 +1,7 @@
+#!/bin/bash
+# journalctl -u <unit> -n <N> --no-pager  -> tail van het servicelog
+n=40
+while [ $# -gt 0 ]; do
+  case "$1" in -n) n=$2; shift 2 ;; -u) shift 2 ;; --no-pager|--since|--until) shift ;; *) shift ;; esac
+done
+tail -n "$n" /var/log/audio_controller.log 2>/dev/null

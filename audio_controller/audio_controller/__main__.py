@@ -62,6 +62,8 @@ def make_app(internal: bool = False):
         template_path=str(template_dir),
         internal=internal,
         xsrf_cookies=True,
+        # gzip the large JS/CSS/HTML payloads; big win on the Pi's wifi (P3)
+        compress_response=True,
     )
 
     sio = socketio.AsyncServer(async_mode="tornado")
@@ -165,7 +167,8 @@ def main():
         ioloop = tornado.ioloop.IOLoop.current()
         schedule_tasks(ioloop.asyncio_loop)
         if settings.settings.enable_audio:
-            controller.set_routes()
+            # de event loop draait hier nog niet, dus de blokkerende variant
+            controller.set_routes_blocking()
         if not settings.settings.enable_logging:
             main_logger.info("Logging is disabled")
             loggers.enable(False)

@@ -12,6 +12,31 @@ $(function() {
 	var $cameras = null;
 	var $wfs = new Wfs();
 	var $presetTimeout;
+	var $publishTimeout;
+
+	// getPresets, getLive en getStreamPublish schrijven alle drie naar dezelfde .alert
+	// en lopen parallel; voorheen won simpelweg wie het laatst terugkwam (een werkende
+	// video verborg zo "Geen live uitzending", en de 60s-poll zette hem later weer terug).
+	// Houd de uitslagen daarom hier bij en render de melding centraal, in vaste volgorde
+	// van ernst. null = nog onbekend.
+	var $camAvailable = null;
+	var $videoAvailable = null;
+	var $streamPublish = null;
+	// volgnummer per camerakeuze, zodat een laat antwoord van de vorige camera
+	// de melding (of de videostream) van de huidige niet overschrijft
+	var $liveSeq = 0;
+
+	function renderLiveAlert(){
+		if( $camAvailable === false ){
+			$('#live .alert').text("Camera is niet beschikbaar.").show();
+		} else if( $videoAvailable === false ){
+			$('#live .alert').text("Video is niet beschikbaar.").show();
+		} else if( $streamPublish === false ){
+			$('#live .alert').text("Geen live uitzending").show();
+		} else {
+			$('#live .alert').hide();
+		}
+	}
 
 	getLogin();
 
@@ -116,13 +141,26 @@ $(function() {
 	function getPresets( $btn ){
 		$('#login, #presets, #live video, #move, #footer').hide();
 		clearTimeout($presetTimeout);
+		clearTimeout($publishTimeout);
 
 		$camid = $btn.val();
 		$toggleLabels = $('.toggleLabels').is(':checked');
 
 		$('#cams button').removeClass('active');
 		$btn.addClass('active');
-		
+
+		// nieuwe camerakeuze: uitslagen van de vorige gelden niet meer
+		var $seq = ++$liveSeq;
+		$camAvailable = null;
+		$videoAvailable = null;
+		$streamPublish = null;
+		renderLiveAlert();
+
+		// De streampublish-status komt van /ajaxcom en heeft de trage ONVIF-handshake
+		// van getPresets niet nodig. Meteen starten in plaats van in de success-callback,
+		// anders verschijnt "Geen live uitzending" op een Pi pas seconden later.
+		getStreamPublish();
+
 		// restart wfs
 		$wfs.destroy();
 		$wfs = null;
@@ -136,11 +174,18 @@ $(function() {
 			data: JSON.stringify({
 				id: parseInt($camid),
 			}),
-			success: function($response){ 
+			success: function($response){
+				if( $seq !== $liveSeq ){
+					return;
+				}
 				if( $response.err == 'connection' ){
 					$('#live').show();
-					$('#live .alert').text("Camera is niet beschikbaar.").show();
+					$camAvailable = false;
+					renderLiveAlert();
 				} else {
+					$camAvailable = true;
+					renderLiveAlert();
+
 					// clear preset buttons
 					$('#presets ul').empty();
 
@@ -167,11 +212,8 @@ $(function() {
 					// load livestream
 					getLive();
 
-					// get streampublish parameter
-					getStreamPublish();
-
 					// set Instellingen link
-					$('#footer .caminstellingen').attr('href','http://'+$cameras[$camid].url_extern)
+					$('#footer .caminstellingen').attr('href','http://'+$cameras[$camid].url_extern+':'+$cameras[$camid].port_http)
 				}
 			}
 		});
@@ -199,6 +241,8 @@ $(function() {
 	 * getLive
 	 */
 	function getLive(){
+		var $seq = $liveSeq;
+
 		$('#live video').hide();
 
 		$.ajax({
@@ -209,27 +253,33 @@ $(function() {
 			data: JSON.stringify({
 				id: parseInt($camid),
 			}),
-			success: function($response){ 
-				if( $response.success ){ 
+			success: function($response){
+				if( $seq !== $liveSeq ){
+					// antwoord van een inmiddels verlaten camera: niet de stream van
+					// de vorige camera aan de speler hangen
+					return;
+				}
+				if( $response.success ){
 					if( $response.uri !== false ){
 						var $video = document.getElementById("preview"); // niet als jQuery object laden!
 						if( $video !== null ){
-							$video.addEventListener('contextmenu', function ($e) { 
-								$e.preventDefault(); 
+							$video.addEventListener('contextmenu', function ($e) {
+								$e.preventDefault();
 							});
 
 							$wfs.attachMedia( $video, "ws://"+$cameras[$camid].url_extern+":"+$cameras[$camid].port_ws+$response.uri );
 						}
 						$('#live video').show();
-						$('#live .alert').hide();
+						$videoAvailable = true;
 					} else {
 						//$('#live .alert').text($response.error).show();
-						$('#live .alert').text("Video is niet beschikbaar.").show();
+						$videoAvailable = false;
 					}
 				} else {
 					//console.error('getLive fail: '+$response.error);
-					$('#live .alert').text("Video is niet beschikbaar.").show();
+					$videoAvailable = false;
 				}
+				renderLiveAlert();
 			}
 		});
 	}
@@ -290,6 +340,8 @@ $(function() {
 	 * StreamPublish
 	 */
 	function getStreamPublish(){
+		var $seq = $liveSeq;
+
 		$.ajax({
 			url: "/camera/getStreamPublish",
 			type: "POST",
@@ -299,15 +351,19 @@ $(function() {
 				id: parseInt($camid),
 			}),
 			success: function($response){
-				$('#footer .streampublish input').attr('checked', $response.success)
-				
-				if( $response.success ){
-					$('#live .alert').hide();
-				} else {
-					$("#live .alert").text("Geen live uitzending").show();
+				if( $seq !== $liveSeq ){
+					// antwoord van een inmiddels verlaten camera
+					return;
 				}
 
-				setTimeout(getStreamPublish, 60000);
+				$('#footer .streampublish input').prop('checked', $response.success)
+
+				// !! zodat elke falsy waarde "geen uitzending" betekent, zoals voorheen;
+				// null blijft gereserveerd voor "nog onbekend"
+				$streamPublish = !!$response.success;
+				renderLiveAlert();
+
+				$publishTimeout = setTimeout(getStreamPublish, 60000);
 			}
 		});
 	}
@@ -331,11 +387,8 @@ $(function() {
 				publish: $val,
 			}),
 			success: function(){
-				if( $val ){
-					$("#live .alert").hide();
-				} else {
-					$("#live .alert").text("Geen live uitzending").show();
-				}
+				$streamPublish = !!$val;
+				renderLiveAlert();
 			}
 		});
 	});

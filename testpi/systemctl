@@ -1,0 +1,97 @@
+#!/bin/bash
+# Minimale systemctl die precies doet wat update_pi.sh gebruikt. Geen echte systemd
+# (die draait niet fatsoenlijk in een container met cgroup v2), maar wel dezelfde
+# opdrachten, exitcodes en uitvoer, zodat het script volledig doorlopen wordt.
+set -u
+RUN=/run/fakesystemd; mkdir -p $RUN
+UNITDIR=/etc/systemd/system
+
+unit_file(){ echo "$UNITDIR/${1%.service}.service"; }
+prop(){ grep -E "^$2=" "$(unit_file "$1")" 2>/dev/null | tail -1 | cut -d= -f2-; }
+pidfile(){ echo "$RUN/${1%.service}.pid"; }
+tsfile(){ echo "$RUN/${1%.service}.ts"; }
+
+is_running(){
+    # /proc in plaats van `kill -0`: update_pi.sh draait `sudo systemctl restart` maar
+    # daarna `systemctl is-active` ZONDER sudo. `kill -0` op een root-proces geeft dan
+    # EPERM en de shim meldde 'inactive' terwijl de app gewoon draaide. Echte systemd
+    # praat met PID 1 en heeft dat probleem niet.
+    local p; p=$(cat "$(pidfile "$1")" 2>/dev/null) || return 1
+    [ -n "$p" ] && [ -d "/proc/$p" ]
+}
+
+do_start(){
+    local svc=$1
+    is_running "$svc" && return 0
+    local exec wd user pf
+    exec=$(prop "$svc" ExecStart); wd=$(prop "$svc" WorkingDirectory); user=$(prop "$svc" User)
+    [ -n "$exec" ] || { echo "Unit ${svc} not found." >&2; return 5; }
+    [ -n "$user" ] || user=root
+    pf=$(pidfile "$svc"); rm -f "$pf"
+    # De gestarte shell schrijft zijn EIGEN pid en exec't daarna in de app, zodat het
+    # pid-bestand het draaiende proces aanwijst. `echo $!` van de achtergrondtaak zou
+    # het pid van setsid/su opleveren, en dat verdwijnt meteen -- dan meldt is-active
+    # 'inactive' terwijl de app gewoon draait.
+    # alle drie de fd's losmaken: start je dit via ssh en blijft stdin open, dan
+    # houdt de app het ssh-kanaal open en hangt de aanroepende kant. Systemd doet
+    # dit netjes; de shim moet het dus zelf doen.
+    setsid su -s /bin/bash "$user" \
+        -c "cd '${wd:-/}' && echo \$\$ > '$pf' && exec $exec" \
+        < /dev/null >> /var/log/audio_controller.log 2>&1 &
+    disown 2>/dev/null || true
+    date -u +%a\ %Y-%m-%d\ %H:%M:%S\ UTC > "$(tsfile "$svc")"
+    # de app heeft op geemuleerde armv7 even nodig om te importeren en te gaan luisteren
+    for _ in $(seq 1 20); do
+        is_running "$svc" && return 0
+        sleep 1
+    done
+    return 1
+}
+
+do_stop(){
+    local svc=$1 p pg
+    p=$(cat "$(pidfile "$svc")" 2>/dev/null) || return 0
+    [ -n "$p" ] || { rm -f "$(pidfile "$svc")"; return 0; }
+    # De hele procesgroep moet weg, niet alleen het opgeslagen pid: run_audio_controller.sh
+    # start python als KIND, en de groepsleider is het su-proces. Een kill op alleen het
+    # pid liet python draaien en dan faalt de volgende start met 'Address already in use'.
+    pg=$(ps -o pgid= -p "$p" 2>/dev/null | tr -d ' ')
+    [ -n "$pg" ] && kill -TERM -- -"$pg" 2>/dev/null
+    kill -TERM "$p" 2>/dev/null
+    for _ in $(seq 1 10); do kill -0 "$p" 2>/dev/null || break; sleep 1; done
+    [ -n "$pg" ] && kill -KILL -- -"$pg" 2>/dev/null
+    kill -KILL "$p" 2>/dev/null
+    rm -f "$(pidfile "$svc")"
+    return 0
+}
+
+cmd=${1:-}; shift || true
+case "$cmd" in
+  start)   do_start "$1" ;;
+  stop)    do_stop "$1" ;;
+  restart) do_stop "$1"; do_start "$1" ;;
+  is-active)
+      if is_running "$1"; then echo active; else echo inactive; exit 3; fi ;;
+  show)
+      # show -p <prop> --value <unit>
+      p=""; unit=""
+      while [ $# -gt 0 ]; do
+        case "$1" in -p) p=$2; shift 2 ;; --value) shift ;; *) unit=$1; shift ;; esac
+      done
+      case "$p" in
+        User) u=$(prop "$unit" User); echo "${u:-root}" ;;
+        ActiveEnterTimestamp) cat "$(tsfile "$unit")" 2>/dev/null || echo "" ;;
+        *) echo "" ;;
+      esac ;;
+  status)
+      unit=$1
+      if is_running "$unit"; then st="active (running)"; else st="inactive (dead)"; fi
+      echo "● ${unit%.service}.service - $(prop "$unit" Description)"
+      echo "   Loaded: loaded ($(unit_file "$unit"); enabled)"
+      echo "   Active: $st since $(cat "$(tsfile "$unit")" 2>/dev/null)"
+      echo " Main PID: $(cat "$(pidfile "$unit")" 2>/dev/null)"
+      tail -20 /var/log/audio_controller.log 2>/dev/null
+      is_running "$unit" || exit 3 ;;
+  daemon-reload|enable|disable) exit 0 ;;
+  *) echo "fake systemctl: onbekend commando '$cmd'" >&2; exit 1 ;;
+esac

@@ -83,6 +83,17 @@ class Hardening(AsyncHTTPTestCase):
         self.assertFalse(resp.get("success"))
         self.assertIn("error", resp)
 
+    def test_lockout_key_is_per_client_not_per_username(self):
+        # S-M5: keying the lockout on the attacker-supplied username lets anyone
+        # lock the admin account (a remote DoS). Key on the client address so two
+        # usernames from the same client share a bucket, while the same username
+        # from two clients does not.
+        same_client_a = H._lockout_key("admin", "203.0.113.9")
+        same_client_b = H._lockout_key("someone-else", "203.0.113.9")
+        other_client = H._lockout_key("admin", "198.51.100.4")
+        self.assertEqual(same_client_a, same_client_b)
+        self.assertNotEqual(same_client_a, other_client)
+
     def test_setuser_rejects_weak_passwords(self):
         t, ck = self._prime()
         auth, _ = self._login("cam", "CamPw", t, ck, referer="http://x/camera")
@@ -101,6 +112,19 @@ class Hardening(AsyncHTTPTestCase):
         after = json.loads(self._post("/general/getSettings", {}, t, ck + "; " + auth).body)
         self.assertEqual(after["version"], before)   # version untouched
         self.assertEqual(after["title"], "Changed")  # other fields still update
+
+    def test_camera_page_font_cannot_inject_css(self):
+        # S-M7: /camera is an unauthenticated GET that renders pb.fontfamily into
+        # a <style> block (font-family: {{font}}). A non-allowlisted value must
+        # be replaced by a safe fallback so it cannot inject CSS rules.
+        settings.settings.enable_camera = True
+        settings.settings.enable_psalmbord = True
+        settings.pb.fontfamily = "x} body{background:red} .a{"
+        r = self.fetch("/camera", method="GET")
+        self.assertEqual(r.code, 200)
+        body = r.body.decode()
+        self.assertNotIn("background:red", body)
+        self.assertNotIn("x} body", body)
 
     def test_internal_host_stream_urls_rejected(self):
         assert settings.validate_source_attribute("port_url", "http://127.0.0.1:8000/x") is None

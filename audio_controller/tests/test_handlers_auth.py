@@ -12,8 +12,6 @@ from audio_controller import settings, user
 
 def _xsrf_from(headers):
     """Extract the _xsrf cookie value from a response's Set-Cookie header(s)."""
-    for _, v in headers.get_all():
-        pass
     cookies = headers.get_list("Set-Cookie")
     for c in cookies:
         m = re.match(r"_xsrf=([^;]+)", c)
@@ -68,6 +66,16 @@ class TestExternalAuth(_Base):
         self.assertEqual(r.code, 200)
         self.assertEqual(json.loads(r.body)["success"], False)
 
+    def test_account_actions_require_login_on_external_port(self):
+        # S8/S-H1: on the internet-facing port, account management and the whole
+        # settings blob need login (unlike the trusted loopback operator UI).
+        token, cookie = self._prime_xsrf()
+        for path in ("/login/getUsers", "/login/setUsers", "/general/downloadSettings",
+                     "/general/restoreSettings"):
+            r = self._post(path, {}, token=token, cookie=cookie)
+            self.assertEqual(r.code, 200, path)
+            self.assertEqual(json.loads(r.body).get("success"), False, path)
+
     def test_default_admin_login_forces_change_and_is_gated(self):
         token, cookie = self._prime_xsrf()
         # log in as the default admin (Referer required by check_app)
@@ -112,3 +120,61 @@ class TestLocalNoLogin(_Base):
         r = self.fetch("/psalmbord", method="POST", body=json.dumps({"html": True}),
                        headers={"Content-Type": "application/json"})
         self.assertEqual(r.code, 200)
+
+    def test_getusers_returns_list_without_login_on_local_port(self):
+        # The loopback listener is the trusted local-operator UI (kiosk/touchscreen
+        # on the Pi): the settings page, incl. user management, works without login.
+        # getUsers must return a LIST here; returning a login-error dict crashes the
+        # SPA user grid ("self.data is not iterable") and bounces it to /login/.
+        token, cookie = self._prime_xsrf()
+        r = self._post("/login/getUsers", {}, token=token, cookie=cookie)
+        self.assertEqual(r.code, 200)
+        self.assertIsInstance(json.loads(r.body), list)
+
+    def test_setusers_works_without_login_on_local_port(self):
+        # The local operator may manage accounts from the Pi settings page.
+        token, cookie = self._prime_xsrf()
+        r = self._post("/login/setUsers",
+                       {"users": [{"username": "beheer", "password": "Sterk!wachtwoord9",
+                                   "admin": True, "camera": True}]},
+                       token=token, cookie=cookie)
+        self.assertEqual(r.code, 200)
+        self.assertIn("beheer", [u.username for u in settings.users])
+
+    def test_config_actions_reachable_without_login_on_local_port(self):
+        # restoreSettings / downloadSettings are part of the local operator UI too.
+        token, cookie = self._prime_xsrf()
+        r = self._post("/general/downloadSettings", {}, token=token, cookie=cookie)
+        self.assertEqual(r.code, 200)
+        self.assertNotEqual(json.loads(r.body).get("success"), False)
+
+
+class TestLoginLogoutCookie(_Base):
+    INTERNAL = False
+
+    def test_logout_returns_200_and_clears_cookie(self):
+        # #16: logout must never 500. On Python 3.7 the old set_cookie_username
+        # passed samesite, which http.cookies rejects (CookieError -> 500) on every
+        # login and logout. The cookie helper now only sends samesite where
+        # supported, so this works on 3.7 and 3.8+ alike.
+        token, cookie = self._prime_xsrf()
+        r = self._post("/login/logout", {}, token=token, cookie=cookie)
+        self.assertEqual(r.code, 200)
+        self.assertEqual(json.loads(r.body).get("success"), True)
+
+    def test_login_sets_auth_cookie_without_error(self):
+        token, cookie = self._prime_xsrf()
+        r = self.fetch("/login/login", method="POST",
+                       body=json.dumps({"username": "admin", "password": "admin"}),
+                       headers={"Content-Type": "application/json", "X-Xsrftoken": token,
+                                "Cookie": cookie, "Referer": "http://localhost/"})
+        self.assertEqual(r.code, 200)
+        self.assertTrue(any("audio_controller_user=" in c for c in r.headers.get_list("Set-Cookie")))
+
+
+def test_samesite_detection_matches_runtime():
+    # #16: the guard must reflect whether http.cookies.Morsel accepts samesite
+    # (False on Python 3.7, True on 3.8+).
+    import http.cookies
+    from audio_controller.handlers import handlers
+    assert handlers._SAMESITE_SUPPORTED == ("samesite" in http.cookies.Morsel())

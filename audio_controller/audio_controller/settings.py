@@ -5,6 +5,8 @@ import json
 import logging
 import threading
 import ipaddress
+import re
+from datetime import datetime
 from urllib.parse import urlparse
 from typing import List
 from pathlib import Path
@@ -101,6 +103,9 @@ def default_destinations():
 
 # file to save settings (including sources and destinations)
 file = Path.home() / ".audio_controller_settings.json"
+# human-readable audit trail of settings changes (who-changed-what review after a
+# physical tamper; see the security-camera discussion). Never contains secrets.
+changelog_file = Path.home() / "audio_controller_logs" / "settings_changes.log"
 # legacy pickle file, only read once for a one-time migration to json (S2)
 _legacy_pickle_file = Path.home() / ".audio_controller_settings.pickle"
 _save_lock = threading.Lock()
@@ -186,6 +191,11 @@ def upgrade(store: dict):
     if store['settings']['version'] == 9:
         store['settings']['version'] = 10
         store['settings']['enable_camera'] = False
+        # het oude bord-model (title + regels) is vervangen door screens; die
+        # sleutels moeten weg, anders faalt Psalmbord(**store['psalmbord']) en
+        # valt load() terug op defaults (alle instellingen kwijt)
+        store['psalmbord'].pop('title', None)
+        store['psalmbord'].pop('regels', None)
         store['psalmbord']['active'] = 1
         store['psalmbord']['screens'] = [
             psalmbord.PsalmbordScreen(index=i, text=text, size=8)
@@ -215,6 +225,10 @@ def use_from_store(store: dict):
     for obj in store["cameras"]: cameras.append(camera.Camera.from_dict(obj))
     for obj in store["users"]: users.append(user.User(**obj))
     pb.__init__(**store['psalmbord'])
+    # Recompute the board content hash after loading: an older store has no
+    # html_hash (default ""), which would collide with the kiosk's initial empty
+    # hash and leave the board blank until the first edit (Guis f9e284c).
+    pb.refresh_html_hash()
 
 
 def load():
@@ -308,8 +322,38 @@ def set_binary(obj):
     # check some required attributes (not all, because some appeared after upgrades)
     if not all(field in store for field in 'settings sources destinations'.split()):
         return
+    if not _sanitize_uploaded_users(store):
+        return  # reject an upload that carries a blank/invalid user password
+    # An uploaded file bypasses the admin-UI update_cameras() path, so re-apply the
+    # camera host guard here too (S-M4): a bad url_intern (loopback / injection)
+    # rejects the whole upload rather than reaching http://{url_intern}/ajaxcom.
+    for cam in store.get('cameras', []):
+        if isinstance(cam, dict) and 'url_intern' in cam:
+            try:
+                _validate_camera_host(cam['url_intern'])
+            except ValueError:
+                return  # fail closed: ignore the whole upload
     use_from_store(store)
     save()
+
+
+def _sanitize_uploaded_users(store: dict) -> bool:
+    """Never trust password fields from an uploaded settings file (S-H1). A
+    genuine backup stores salted pbkdf2 hashes, which are kept as-is; a plaintext
+    or bare legacy blake2b hash is re-hashed so it cannot serve as a
+    known-password account. A BLANK password is refused (return False) rather than
+    hashed: unlike the admin grid there is no prior password to keep, so hashing ""
+    would create a working empty-password account. Returns False if the upload
+    must be rejected."""
+    for obj in store.get('users', []):
+        if not isinstance(obj, dict):
+            continue
+        pw = obj.get('password', '')
+        if not pw:
+            return False  # blank password in an upload -> reject the whole file
+        if user.is_legacy_hash(pw):  # not already salted pbkdf2 -> plaintext or legacy
+            obj['password'] = user.hash_password(pw)
+    return True
 
 
 #
@@ -400,7 +444,9 @@ def validate_settings(obj: Settings):
     # turn auto-switch off, if option is disabled
     if obj.enable_auto_switch and not obj.enable_option_auto_switch:
         obj.enable_auto_switch = False
-    obj.timeout_auto_switch = max(0, min(60 * 24, obj.timeout_auto_switch))
+    # at least 1 minute: 0 would make the auto_switch loop sleep(0) and spin the
+    # CPU at 100% (P1)
+    obj.timeout_auto_switch = max(1, min(60 * 24, obj.timeout_auto_switch))
     return True
 
 
@@ -444,9 +490,53 @@ def validate_destination_attribute(name: str, value):
         return None
 
 
+_CAMERA_PORT_ATTRIBUTES = ("port_http", "port_onvif", "port_ws")
+
+# A bare hostname (letters/digits/hyphen labels), used for camera url_intern.
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}))*$"
+)
+
+
+def _validate_camera_host(value):
+    """Validate a camera url_intern: a bare hostname or IPv4/IPv6 literal that is
+    spliced into http://{url_intern}/ajaxcom and used for ONVIF (S-M4). Cameras
+    live on the private LAN, so private IPs stay valid; loopback/link-local/
+    reserved are blocked so the field cannot be aimed at the Pi's own services,
+    and scheme/path/port/userinfo are rejected to stop url injection."""
+    host = str(value).strip()
+    if not host or "://" in host or any(c in host for c in "/@ \t?#\\"):
+        raise ValueError(f"camera url_intern: ongeldige host: {value!r}")
+    ip = None
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        ip = None
+    if ip is not None:
+        if (ip.is_loopback or ip.is_link_local or ip.is_reserved
+                or ip.is_unspecified or ip.is_multicast):
+            raise ValueError(f"camera url_intern: adres niet toegestaan: {host}")
+        return host
+    if _HOSTNAME_RE.match(host):
+        return host
+    raise ValueError(f"camera url_intern: ongeldige host: {value!r}")
+
+
 def validate_camera_attribute(name: str, value):
     """ Validate value for attribute with name of a Camera object.
-    Return value, or adjusted value, or None if it is not valid. """
+    Return value, or adjusted value. Raise ValueError for an invalid port.
+    Ports arrive from the admin UI as strings; store them as int (1-65535)
+    so a typo or an empty field cannot end up in the connection URL. """
+    if name == 'url_intern':
+        return _validate_camera_host(value)
+    if name in _CAMERA_PORT_ATTRIBUTES:
+        try:
+            port = int(str(value).strip())
+        except (TypeError, ValueError):
+            raise ValueError(f"camera {name}: geen geldig poortnummer: {value!r}") from None
+        if not 1 <= port <= 65535:
+            raise ValueError(f"camera {name}: poort buiten bereik 1-65535: {port}")
+        return port
     try:
         if name == 'name':
             return value[0:50]  # max 50 characters
@@ -460,9 +550,9 @@ def validate_user_attribute(name: str, value):
     Return value, or adjusted value, or None if it is not valid. """
     try:
         if name == 'username':
-            return value[0:50]  # max 50 characters
+            return str(value)[0:50]  # coerce + cap at 50 chars (never crash on non-str)
         elif name == 'password':
-            return value[0:50]  # max 50 characters
+            return str(value)[0:50]  # max 50 characters
         return value
     except:
         return None
@@ -470,6 +560,35 @@ def validate_user_attribute(name: str, value):
 #
 # Updates
 #
+
+
+def log_change(section: str, summary: str):
+    """Append one timestamped, secret-free line to the settings changelog. Best
+    effort: a logging failure must never break saving a setting. (audit trail)"""
+    if not summary:
+        return
+    try:
+        changelog_file.parent.mkdir(exist_ok=True)
+        line = f"{datetime.now().isoformat(timespec='seconds')} | {section} | {summary}\n"
+        with open(changelog_file, 'a', encoding='utf-8') as f:
+            f.write(line)
+        try:
+            os.chmod(changelog_file, 0o600)
+        except OSError:
+            pass
+    except Exception:
+        main_logger.exception("could not write settings changelog")
+
+
+def _diff_fields(before: dict, after: dict, skip=()) -> str:
+    """Compact 'field: old -> new' summary of changed keys, skipping `skip`."""
+    parts = []
+    for k in after:
+        if k in skip:
+            continue
+        if before.get(k) != after.get(k):
+            parts.append(f"{k}: {before.get(k)!r} -> {after.get(k)!r}")
+    return ", ".join(parts)
 
 
 def update_settings(obj: dict):
@@ -492,6 +611,7 @@ def update_settings(obj: dict):
                 pass  # ignore attr
     if validate_settings(settings):
         save()
+        log_change("settings", _diff_fields(asdict(backup), asdict(settings)))
     else:  # restore
         settings.__init__(**asdict(backup))
 
@@ -520,8 +640,10 @@ def update_sources(new_sources: List[dict]):
         sources.clear()
         for obj in new_list: sources.append(obj)
         save()
-    except:
-        pass
+        selected = [s.name for s in sources if s.selected]
+        log_change("sources", f"{len(sources)} bronnen; geselecteerd: {selected}")
+    except Exception:
+        main_logger.exception("update_sources failed")
 
 
 def update_destinations(new_destinations: List[dict]):
@@ -548,8 +670,10 @@ def update_destinations(new_destinations: List[dict]):
         destinations.clear()
         for obj in new_list: destinations.append(obj)
         save()
-    except:
-        pass
+        selected = [d.name for d in destinations if d.selected]
+        log_change("destinations", f"{len(destinations)} bestemmingen; geselecteerd: {selected}")
+    except Exception:
+        main_logger.exception("update_destinations failed")
 
 
 def update_cameras(new_cameras: List[dict]):
@@ -574,6 +698,9 @@ def update_cameras(new_cameras: List[dict]):
 
         cameras[:] = new_list
         save()
+        # names + LAN hosts only; never the ONVIF username/password
+        summary = ", ".join(f"{c.name}@{c.url_intern}" for c in cameras)
+        log_change("cameras", f"{len(cameras)} camera's: {summary}")
     except Exception:
         main_logger.exception("settings write failed")
         raise
@@ -590,23 +717,32 @@ def update_users(new_users: List[dict]):
 
         for obj in new_users:
             usr = user.User(**obj)
-            usr.username = validate_user_attribute("username", usr.username)
+            # coerce to str before strip: a None/non-str username must not crash
+            # the whole save (corrupt import / admin edit).
+            usr.username = str(validate_user_attribute("username", usr.username) or "").strip()
             prior = existing.get(usr.username)
             incoming_pw = usr.password
 
             if not incoming_pw or (prior is not None and incoming_pw == prior.password):
-                # blank or unchanged -> keep the stored (already hashed) password
+                # A blank password means "leave the password unchanged": the admin
+                # grid blanks the password field, and the SPA re-posts EVERY user on
+                # any field change (e.g. toggling the admin/camera checkbox), so a
+                # blank password must NEVER change or empty a password. (Guis)
                 if prior is not None:
                     usr.password = prior.password
                     usr.must_change_password = prior.must_change_password
                 else:
-                    # brand-new user without a password: hash whatever was given
-                    usr.password = user.hash_password(validate_user_attribute("password", incoming_pw))
-                    usr.must_change_password = False
+                    # No prior to keep (a brand-new user, or a rename we can't match
+                    # by name): refuse rather than store an empty password. A new or
+                    # renamed account must be given a password.
+                    raise ValueError("een nieuwe of hernoemde gebruiker vereist een wachtwoord")
             else:
-                # a new plaintext password was provided -> salt+hash it
-                usr.password = validate_user_attribute("password", incoming_pw)
-                usr.password = user.hash_password(usr.password)
+                # a new plaintext password was provided -> salt+hash it, but refuse
+                # weak/default passwords here too (the admin grid, not just setUser)
+                new_pw = validate_user_attribute("password", incoming_pw)
+                if user.is_weak_password(new_pw, usr.username):
+                    raise ValueError("Kies een sterker wachtwoord")
+                usr.password = user.hash_password(new_pw)
                 usr.must_change_password = False
 
             usr.admin = usr.admin or usr.admin == "True"
@@ -618,12 +754,20 @@ def update_users(new_users: List[dict]):
         # get_user use the first match), so duplicate usernames would let a
         # low-privilege session bind to a higher-privileged row. Reject any
         # write that would create a duplicate. (security)
-        names = [u.username for u in new_list]
+        # Dedupe case-insensitively: login (get_user) matches usernames
+        # case-insensitively, so "Admin" and "admin" are the same account and one
+        # would shadow the other (an authorization/privilege-binding risk). (#17)
+        names = [u.username.lower() for u in new_list]
         if len(names) != len(set(names)):
             raise ValueError("duplicate usernames are not allowed")
 
         users[:] = new_list
         save()
+        # usernames + roles only; never passwords/hashes
+        summary = ", ".join(
+            f"{u.username}({'admin' if u.admin else ''}{'+camera' if u.camera else ''})"
+            for u in users)
+        log_change("users", f"{len(users)} gebruikers: {summary}")
     except Exception:
         main_logger.exception("settings write failed")
         raise

@@ -1,21 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="nl">
 <head>
+    <title>Psalmbord {{title}}</title>
     <meta charset="UTF-8">
-    <title>Psalmbord</title>
-    <link rel='stylesheet' href="/static/js/jquery-ui.min.css">
-    <link rel='stylesheet' href="/static/js/bootstrap-4.1.3-dist/css/bootstrap.css">
-    <link rel='stylesheet' href="/static/js/fontawesome-free-5.13.1-web/css/all.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The board's inline script uses only jQuery core; jQuery-UI, Bootstrap
+         and FontAwesome were ~750 KB of unused assets on a low-power kiosk. -->
     <style>
         {{ css }}
     </style>
     <link rel='stylesheet' href="/static/css/psalmbord.css">
-
     <script src="/static/js/jquery-3.3.1.min.js"></script>
-    <script src="/static/js/jquery-ui.min.js"></script>
-    <script src="/static/js/bootstrap-4.1.3-dist/js/bootstrap.bundle.js"></script>
-    <script src="/static/js/bootstrap-toggle.min.js"></script>
 </head>
 
 <body>
@@ -24,45 +19,56 @@
 </body>
 
 <script>
-
     let url = window.location.origin + "/" + "psalmbord"
     let css = $("style")
     let container = $(".container")
     let interval = 10000 // milliseconds
     let hasFailed = false
     let firstAlignment = true
-
-    function success(response) {
-        let result = JSON.parse(response)
-        if (hasFailed) {
-            location.reload()
-        } else {
-            interval = result["refreshrate"]*1000 // milliseconds
-            css.html(result["css"])
-            container.html(result["html"])
-            if(firstAlignment){
-                setTimeout(alignment, 200 )
-            } else {
-                alignment()
-            }
-            setTimeout(update, interval)
-        }
-    }
-
-    function error() {
-        hasFailed = true
-        setTimeout(update, interval)
-    }
+    let html_hash = ""
 
     function update() {
         $.ajax({
             type: "POST",
             url: url,
-            data: JSON.stringify({ html: true }),
-            success: success,
-            error: error,
+            data: JSON.stringify({ html: true, html_hash: html_hash }),
+            success: function(response) {
+                let result = JSON.parse(response)
+                if (hasFailed) {
+                    location.reload()
+                } else {
+                    interval = result["refreshrate"]*1000 // milliseconds
+                    css.html(result["css"])
+                    if(result["html_hash"] !== undefined){
+                        // html content en hash alleen verversen als gewijzigde content aangeleverd is
+                        html_hash = result["html_hash"]
+                        container.html(result["html"])
+                    }
+                    if(firstAlignment && interval > 2000){
+                        // de eerste keer de alignment vertragen, zodat pagina volledig geladen is
+                        // dit is alleen zinvol als de ingestelde interval >2sec is
+                        setTimeout(alignment, 2000 )
+                    } else {
+                        alignment()
+                    }
+                    setTimeout(update, interval)
+                }
+            },
+            error: function() {
+                hasFailed = true
+                setTimeout(update, interval)
+            },
             contentType: "application/json; charset=utf-8",
         })
+    }
+
+    function boardHeight(){
+        // 100vh is op een telefoon de viewport ZONDER browserbalk (de "large viewport"),
+        // terwijl er minder zichtbaar is; in de responsive mode van devtools is er geen
+        // browserbalk en zijn ze wel gelijk. Vandaar dat een echte telefoon anders rendert
+        // dan de emulator. Meet daarom de werkelijk zichtbare hoogte en reken daarmee.
+        // Op een kioskscherm is innerHeight gelijk aan 100vh, dus daar verandert niets.
+        document.documentElement.style.setProperty("--boardh", window.innerHeight + "px")
     }
 
     function alignment(){
@@ -70,7 +76,11 @@
         container.find(".regel").each(function(){
             var regel = $(this).innerWidth()
             var col2 = $(this).find(".col2").outerWidth()
-            
+
+            // eerder gezette breedtes eerst wissen, anders meten we hieronder onze
+            // eigen vorige uitkomst (alignment draait ook opnieuw zonder nieuwe content)
+            $(this).find(".col1, .col3").css("width", "")
+
             // breedte van col1 en col3 instellen, mits er een col2 bestaat
             if( col2 !== undefined ){
                 var col1 = $(this).find(".col1").outerWidth()
@@ -111,9 +121,19 @@
         }
 	}
 
+    var resizeTimeout
+    $(window).on("resize orientationchange", function(){
+        // op een telefoon verandert de zichtbare hoogte als de browserbalk in- of
+        // uitschuift; even wachten tot dat uitgeanimeerd is
+        clearTimeout(resizeTimeout)
+        resizeTimeout = setTimeout(function(){
+            boardHeight()
+            alignment()
+        }, 200)
+    })
+
+    boardHeight()
 	resolution()
     update()
-
 </script>
-
 </html>

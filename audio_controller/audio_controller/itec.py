@@ -8,8 +8,12 @@ See for more info the ITEC manuals at https://www.itec-audio.com/downloads/anlei
 """
 # standard lib
 import sys, os, time
+import asyncio
 import datetime as dt
+import functools
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 import logging
 import traceback
@@ -20,7 +24,40 @@ import serial
 # internal
 from . import settings
 
-_last_time_get_serial = None
+_last_failed_open = None
+
+# Timeouts van de seriele poort; bewust asymmetrisch. Een pakket is 5 bytes en heeft
+# op 19200 baud ~2,6 ms zendtijd nodig; de rest is speling voor de USB-bus (zie
+# get_serial()). De schrijftimeout is het ruimst omdat die het op west begaf en
+# alleen tijd kost als de uitvoerbuffer echt vol zit.
+SERIAL_READ_TIMEOUT = 0.15   # seconds
+SERIAL_WRITE_TIMEOUT = 0.5   # seconds
+
+
+# Alle seriele I/O loopt over EEN vaste worker-thread. Dat lost twee dingen tegelijk
+# op. Ten eerste blokkeert de event loop niet meer op de poort: alle listeners delen
+# er een, dus een trage ITEC legde ook de camera-app en het psalmbord stil. Ten
+# tweede voert precies een worker de opdrachten in volgorde en volledig uit, zodat
+# twee gelijktijdige route-wijzigingen elkaar niet half kunnen overschrijven -- wat
+# met alleen een slot per commando wel zou kunnen.
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="itec")
+
+# Vangnet. Spreekt er ergens toch nog iets de poort rechtstreeks vanuit de loop-thread
+# aan, dan kunnen twee threads in elk geval niet halverwege elkaars pakket schrijven.
+# Zolang alles via run() loopt is dit slot onbelast en kost het niets.
+_port_lock = threading.RLock()
+
+
+async def run(func, *args, **kwargs):
+    """Voer een blokkerende ITEC-aanroep uit op de seriele worker-thread.
+
+    Elke aanroep vanuit de draaiende event loop hoort hier langs te gaan; wat er
+    binnen een enkele aanroep gebeurt, gebeurt ononderbroken.
+    """
+    if args or kwargs:
+        func = functools.partial(func, *args, **kwargs)
+    return await asyncio.get_event_loop().run_in_executor(_executor, func)
+
 
 main_logger = logging.getLogger("main")
 
@@ -45,13 +82,14 @@ def get_usb_port():
 
 def get_serial():
     """ seriele poort confguratie """
-    # only try to open the port every ... seconds
+    # Alleen na een MISLUKTE open even wachten. Dat beschermt tegen hameren op een
+    # adapter die er niet is, terwijl heropenen na een geslaagde open meteen mag.
+    # Voorheen werd elke poging geklokt, ook een geslaagde: viel de verbinding twee
+    # keer binnen 5 seconden weg, dan stond de bediening tot 5 seconden stil.
     retry_time = 5  # seconds
-    global _last_time_get_serial
-    if _last_time_get_serial is not None and _last_time_get_serial > dt.datetime.utcnow() - dt.timedelta(seconds=retry_time):
+    global _last_failed_open
+    if _last_failed_open is not None and _last_failed_open > dt.datetime.utcnow() - dt.timedelta(seconds=retry_time):
         return None
-
-    _last_time_get_serial = dt.datetime.utcnow()
 
     port = get_usb_port()
     result = serial.Serial()
@@ -61,16 +99,24 @@ def get_serial():
     result.parity = serial.PARITY_NONE
     result.stopbits = serial.STOPBITS_ONE
     result.port = port
-    result.timeout = 0.05  # seconds
-    result.write_timeout = 0.05  # seconds
+    # Een pakket is 5 bytes: op 19200 baud ~2,6 ms zendtijd. De 50 ms die hier stond
+    # was daarvoor ruim, maar niet voor de USB-bus: de pl2303 praat in bulk-transfers
+    # en deelt op de Pi een full-speed segment met de USB-audiocodec, waarvan het
+    # isochrone verkeer voorrang heeft. Een enkele keer schuift een transfer daardoor
+    # voorbij de 50 ms en liep de bediening vast op een timeout. (west, 2026-09-06)
+    result.timeout = SERIAL_READ_TIMEOUT  # seconds
+    result.write_timeout = SERIAL_WRITE_TIMEOUT  # seconds
     try:
         result.open()
-    except:
+    except Exception:
         msg = f"Cannot open serial port. Do you have permissions on {port}?"
         # possible solution: sudo chmod 666 /dev/ttyUSB0
         print(msg)
         main_logger.info(msg)
         result = None
+        _last_failed_open = dt.datetime.utcnow()
+    else:
+        _last_failed_open = None
     return result
 
 
@@ -85,7 +131,18 @@ class ITEC():
         """
         Write command and read result. Return result on success. Try once again if returned value is bad.
         Drop connection on exceptions, which may be recovered next call.
+
+        Een timeout is hierop de uitzondering: die betekent alleen dat de USB-bus
+        even bezet was, niet dat de adapter weg is. De poort blijft dan open en
+        alleen de buffers worden geleegd.
+
+        Blokkeert; hoort daarom vanuit de event loop via itec.run() aangeroepen te
+        worden. Het slot is het vangnet voor paden die dat niet doen.
         """
+        with _port_lock:
+            return self._write_read_locked(command, r_value, value)
+
+    def _write_read_locked(self, command, r_value, value):
         # try to create port again
         if self.serial is None:
             self.serial = get_serial()
@@ -107,11 +164,29 @@ class ITEC():
                 msg = "Trying again to send command to serial port"
                 print(msg)
                 main_logger.warning(msg)
+                # restanten van het mislukte antwoord weggooien, anders leest de
+                # tweede poging de staart van de eerste
+                self.serial.reset_input_buffer()
                 self.serial.write(packet)
                 result = self.serial.read(5)
                 if ack(result):
                     return result[3]
-        except:
+        except serial.SerialTimeoutException:
+            # De bus was even bezet. pyserial schrijft het pakket in stukjes en kan
+            # de timeout gooien nadat er al bytes weg zijn, dus er kan een half
+            # pakket onderweg zijn: buffers legen en het de volgende aanroep opnieuw
+            # proberen. De poort sluiten hoeft niet en kost de bediening onnodig tijd.
+            msg = "Timeout on serial port, buffers cleared. Retry next call."
+            print(msg)
+            main_logger.warning(msg)
+            try:
+                self.serial.reset_output_buffer()
+                self.serial.reset_input_buffer()
+            except Exception:
+                # lukt zelfs het legen niet, dan is er wel echt iets mis
+                self.serial = None
+            return None
+        except Exception:
             # something bad happened with the connection, do not try to recover here, but maybe next call
             msg = f"Exception while writing command to serial port. Try to recover next call. Exception: \n{traceback.format_exc()}"
             print(msg)
