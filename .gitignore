@@ -19,3 +19,10 @@ __pycache__
 .git.tar
 rsync-result.txt
 .pytest_cache
+
+# lokale werkbestanden (niet in de repo)
+.playwright-mcp
+security_test
+transcrypt/webpack.local.js
+/*.png
+/*.pptx

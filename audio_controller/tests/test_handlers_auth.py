@@ -171,6 +171,23 @@ class TestLoginLogoutCookie(_Base):
         self.assertEqual(r.code, 200)
         self.assertTrue(any("audio_controller_user=" in c for c in r.headers.get_list("Set-Cookie")))
 
+    def test_login_response_returns_canonical_username(self):
+        # Login is case-insensitive (get_user), so the client must be told which
+        # account it actually got: camera.js shows this name and prefills its
+        # "Wijzigen" form with it. Without it the app echoes what was typed
+        # ("Admin"), and a later setUser would rename the stored account.
+        settings.users[:] = [user.User("arjen", user.hash_password("GeheimPw1"),
+                                       True, True, False)]
+        token, cookie = self._prime_xsrf()
+        r = self.fetch("/login/login", method="POST",
+                       body=json.dumps({"username": "ARJEN", "password": "GeheimPw1"}),
+                       headers={"Content-Type": "application/json", "X-Xsrftoken": token,
+                                "Cookie": cookie, "Referer": "http://localhost/camera"})
+        self.assertEqual(r.code, 200)
+        body = json.loads(r.body)
+        self.assertTrue(body.get("success"))
+        self.assertEqual(body.get("username"), "arjen")
+
 
 def test_samesite_detection_matches_runtime():
     # #16: the guard must reflect whether http.cookies.Morsel accepts samesite
