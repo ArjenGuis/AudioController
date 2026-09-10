@@ -246,6 +246,8 @@ User Linux as host. Windows is also possible, but not covered by this manual.
 
 To read or write audio from/to an url, install ffmpeg.
 
+Per destination, an Icecast/file stream can override the default ffmpeg audio settings by appending `;bitrate;channels` to the configured URL. For example, `icecast://source:password@example.org:8000/mount;128K;mono` streams that destination at 128K mono. Supported channel values are `mono`, `stereo`, `1`, and `2`; if omitted, ffmpeg keeps its default channel layout.
+
 ...
 
 

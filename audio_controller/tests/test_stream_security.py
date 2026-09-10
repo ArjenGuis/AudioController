@@ -14,6 +14,19 @@ def test_sanitize_bitrate_rejects_injection():
     assert stream.sanitize_bitrate("$(reboot)") == "64K"
 
 
+def test_sanitize_channels_valid():
+    assert stream.sanitize_channels("mono") == "1"
+    assert stream.sanitize_channels("1") == "1"
+    assert stream.sanitize_channels("stereo") == "2"
+    assert stream.sanitize_channels("2") == "2"
+
+
+def test_sanitize_channels_rejects_injection():
+    assert stream.sanitize_channels("mono; rm -rf ~") == ""
+    assert stream.sanitize_channels("-ac 1") == ""
+    assert stream.sanitize_channels("$(reboot)") == ""
+
+
 def test_ffmpeg_input_is_argv_with_url_single_token():
     # no shell is used; the url is one argv element and cannot be split/injected
     raw = "http://host/live; rm -rf ~"
@@ -36,3 +49,12 @@ def test_ffmpeg_output_bitrate_after_semicolon():
     assert out[-1] == "icecast://h/mount"
     i = out.index("-b:a")
     assert out[i + 1] == "128K"
+
+
+def test_ffmpeg_output_bitrate_and_channels_after_semicolons():
+    out = stream.ffmpeg_output_for_url("icecast://h/mount;128K;mono")
+    assert out[-1] == "icecast://h/mount"
+    i = out.index("-b:a")
+    assert out[i + 1] == "128K"
+    i = out.index("-ac")
+    assert out[i + 1] == "1"
