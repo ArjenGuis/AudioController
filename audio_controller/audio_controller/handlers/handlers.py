@@ -356,7 +356,11 @@ class Login(BaseHandler):
                 print(msg)
                 main_logger.info(msg)
                 self.set_cookie_username(username)  # assumes unique usernames
-                self.write(dumps({"success": True,
+                # Report the CANONICAL username (login is case-insensitive), like the
+                # already-logged-in branch above does. The camera app shows this name
+                # and prefills its "Wijzigen" form with it; echoing what was typed
+                # ("Arjen" for stored "arjen") would rename the account on setUser.
+                self.write(dumps({"success": True, "username": username,
                                   "must_change_password": bool(usr and usr.must_change_password)}))
             else:
                 _login_record_failure(lock_key)

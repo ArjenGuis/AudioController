@@ -53,11 +53,7 @@ $(function() {
 			dataType: 'json',
 			success: function($response){
 				if( $response.success ){
-					$('#cams, #live, #user').show();
-
-					setUsername( $response.username );
-
-					getCameras();
+					showLoggedIn( $response.username );
 				} else {
 					$('#login').show();
 
@@ -73,12 +69,7 @@ $(function() {
 							}),
 							success: function($response){
 								if( $response.success ){
-									$('#login').hide();
-									$('#cams, #user').show();
-									
-									setUsername( $('#login #current-username').val() );
-									
-									getCameras();
+									showLoggedIn( $response.username );
 								} else {
 									$('#login .fout').show();
 								}
@@ -88,6 +79,23 @@ $(function() {
 				}
 			}
 		});
+	}
+
+	// Beide login-paden (al ingelogd via cookie, en net ingelogd via het formulier)
+	// moeten exact dezelfde elementen tonen. Ze stonden apart uitgeschreven en waren
+	// uit elkaar gelopen: het formulier-pad toonde #live niet, dus na een verse login
+	// bleef de videocontainer verborgen tot een refresh (alleen zichtbaar als de
+	// camera onbereikbaar was, want die foutmelding doet zelf $('#live').show()).
+	// De naam komt van de server, niet uit het invoerveld: login is niet
+	// hoofdlettergevoelig, dus "Arjen" hoort als "arjen" in de UI en in het
+	// wijzigformulier te staan (anders hernoemt setUser het account).
+	function showLoggedIn(username){
+		$('#login').hide();
+		$('#cams, #live, #user').show();
+
+		setUsername( username || $('#login #current-username').val() );
+
+		getCameras();
 	}
 
 	function setUsername(username){
