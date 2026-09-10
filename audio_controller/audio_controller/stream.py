@@ -15,12 +15,24 @@ from audio_controller import soundcard
 main_logger = logging.getLogger("main")
 
 _BITRATE_RE = re.compile(r"^[0-9]+[KkMm]?$")
+_CHANNELS = {
+    "mono": "1",
+    "1": "1",
+    "stereo": "2",
+    "2": "2",
+}
 
 
 def sanitize_bitrate(raw: str) -> str:
     """Return raw if it is a plain ffmpeg bitrate (e.g. '64K'), else the safe default '64K' (S1)."""
     raw = (raw or "").strip()
     return raw if _BITRATE_RE.match(raw) else "64K"
+
+
+def sanitize_channels(raw: str) -> str:
+    """Return an ffmpeg channel count for mono/stereo values, or an empty string for the default."""
+    raw = (raw or "").strip().lower()
+    return _CHANNELS.get(raw, "")
 
 
 def ffmpeg_input_for_url(url: str) -> "list[str]":
@@ -30,16 +42,20 @@ def ffmpeg_input_for_url(url: str) -> "list[str]":
 
 
 def ffmpeg_output_for_url(raw_url: str) -> "list[str]":
-    """Parse 'url;bitrate' and return injection-safe ffmpeg output argv (S1/S6).
+    """Parse 'url;bitrate;channels' and return injection-safe ffmpeg output argv (S1/S6).
     Every value is a separate argv element; the url is the single trailing token."""
     parts = raw_url.split(";")
     url = parts[0]
     bitrate = sanitize_bitrate(parts[1]) if len(parts) > 1 and parts[1] else "64K"
-    return [
+    channels = sanitize_channels(parts[2]) if len(parts) > 2 else ""
+    cmd = [
         "-content_type", "audio/mpeg", "-f", "mp3",
         "-b:a", bitrate, "-minrate", bitrate, "-maxrate", bitrate, "-bufsize", bitrate,
-        url,
     ]
+    if channels:
+        cmd += ["-ac", channels]
+    cmd += [url]
+    return cmd
 
 
 def print_info(msg):
