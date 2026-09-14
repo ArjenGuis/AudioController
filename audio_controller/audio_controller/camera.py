@@ -63,6 +63,45 @@ def onvif_transport(timeout: int = ONVIF_TIMEOUT) -> Transport:
 HOME_PRESET_TOKEN = "0"
 
 
+def profile_resolution(profile) -> int | None:
+    """Aantal beeldpunten van een ONVIF-profiel, of None als de camera het niet meldt."""
+    try:
+        resolution = profile.VideoEncoderConfiguration.Resolution
+        return int(resolution.Width) * int(resolution.Height)
+    except Exception:
+        return None
+
+
+def select_stream_profile(profiles):
+    """Kies het profiel voor beeld en bediening: het lichtste dat de camera biedt.
+
+    De hoofdstream is te zwaar voor dit gebruik. De browser kan hem niet
+    bijhouden, buffert het verschil en loopt daardoor de hele dienst verder
+    achter -- bij de tussenzang zo'n vier minuten. De substream is van lagere
+    kwaliteit en juist hiervoor bedoeld.
+
+    Kies daarom het profiel met de laagste resolutie. Meldt de camera geen
+    resoluties, dan volgen we de ONVIF-volgorde (hoofdstream eerst, substream
+    tweede). Een camera met maar een profiel houdt dat profiel: een vaste
+    index [1] liep daarop stuk met een IndexError, en dat werd in de app
+    'Verbinding met ... mislukt'.
+    """
+    if not profiles:
+        return None
+
+    measured = [
+        (resolution, index, profile)
+        for index, (resolution, profile) in enumerate(
+            (profile_resolution(p), p) for p in profiles
+        )
+        if resolution is not None
+    ]
+    if measured:
+        return min(measured, key=lambda item: (item[0], item[1]))[2]
+
+    return profiles[1] if len(profiles) > 1 else profiles[0]
+
+
 @dataclass
 class Preset:
     token: str
@@ -127,7 +166,9 @@ class Camera:
             self._media = self._cam.create_media_service()
             self._ptz = self._cam.create_ptz_service()
             self._device = self._cam.create_devicemgmt_service()
-            self._profile = self._media.GetProfiles()[1]
+            self._profile = select_stream_profile(self._media.GetProfiles())
+            if self._profile is None:
+                raise ValueError(f"camera '{self.name}' biedt geen ONVIF-profielen")
         except Exception as err:
             raise ConnectionError(
                 f"Verbinding met '{self.name}' mislukt"
