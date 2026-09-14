@@ -127,7 +127,7 @@ class Camera:
             self._media = self._cam.create_media_service()
             self._ptz = self._cam.create_ptz_service()
             self._device = self._cam.create_devicemgmt_service()
-            self._profile = self._media.GetProfiles()[0]
+            self._profile = self._media.GetProfiles()[1]
         except Exception as err:
             raise ConnectionError(
                 f"Verbinding met '{self.name}' mislukt"
