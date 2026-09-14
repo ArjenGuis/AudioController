@@ -318,10 +318,15 @@ class Login(BaseHandler):
             # Never expose password hashes to the client (D). The admin grid does
             # not prefill the password field; a blank password on the way back
             # means "keep existing" (see settings.update_users).
+            # `orig_username` travels along so the grid can post a RENAME back:
+            # it names the stored record, which a changed username no longer
+            # does, and keeping the password is what makes a rename possible at
+            # all in a grid that saves every field change on its own. (#23)
             out = []
             for obj in settings.users:
                 d = asdict(obj)
                 d["password"] = ""
+                d["orig_username"] = obj.username
                 out.append(d)
             self.write(dumps(out))
 
