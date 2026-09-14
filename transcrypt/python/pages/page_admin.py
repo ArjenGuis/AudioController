@@ -5,6 +5,7 @@ from pages import page_admin, page_overview
 from layout import home, main, set_title
 from paged_list import PagedList
 from dialogs import dialog_confirm
+import users_grid
 
 E = Element
 
@@ -570,20 +571,24 @@ class Cameras(AccordionItem):
 
         self.refresh = initialize
 
-def user(username, password, admin, camera):
-    return {
-        "username": username, 
-        "password": password,
-        "admin": admin,
-        "camera": camera
-    }
-
 class Users(AccordionItem):
     def __init__(self):
         super().__init__("Gebruikers")
 
+        # A refused save has to be visible: the grid saves on every onchange, and
+        # its error message used to disappear into the model, which then posted
+        # the error object back as the user list. (#23)
+        alert = E("div").attr("class", "alert alert-danger").attr("style", "display:none")
+        self.body.append(alert)
+
         plist = PagedList(self.body.element, "").hide_count().disable_pagination()
         plist.get_styling().table_class("table borderless")
+
+        def show_error(message):
+            if message:
+                alert.inner_html(message).attr("style", "display:block")
+            else:
+                alert.attr("style", "display:none")
 
         def text_element(attr, item):
             r = E("input").attr("type", "text")
@@ -599,7 +604,12 @@ class Users(AccordionItem):
         def password_element(attr, item):
             r = E("input").attr("type", "password")
             #r.element.value = item[attr]
-            r.element.placeholder = "invullen om te wijzigen"
+            # a stored user keeps its password when this field stays empty;
+            # a new one has nothing to keep, so it has to be filled in (#23)
+            if users_grid.is_new(item):
+                r.element.placeholder = "verplicht"
+            else:
+                r.element.placeholder = "invullen om te wijzigen"
 
             def onchange(evt):
                 item[attr] = r.element.value
@@ -629,14 +639,28 @@ class Users(AccordionItem):
             return
 
         async def save_changes():
-            self.users = await utils.post(
+            # Every onchange saves the whole list, so an incomplete row (a new
+            # user without a password yet) must not be posted: the server can
+            # only refuse it. Say what is missing instead. (#23)
+            problem = users_grid.validate(self.users)
+            if problem:
+                show_error(problem)
+                return
+            show_error("")
+            result = await utils.post(
                 utils.get_url("login/setUsers"), {"users": self.users}
             )
+            # Only a successful save (the fresh user list) may become the model;
+            # a refused one keeps the rows being edited, so the admin can fix it.
+            applied = users_grid.apply_result(self.users, result)
+            self.users = applied[0]
+            show_error(applied[1])
             plist.get_server().data = self.users
             plist.refresh()
 
         def add_item(evt):
-            self.users.append(user("username", "password"))
+            show_error("")
+            self.users.append(users_grid.new_row())
             plist.get_server().data = self.users
             plist.refresh()
 
@@ -646,7 +670,12 @@ class Users(AccordionItem):
         self.body.append(button_add)
 
         async def initialize():
-            self.users = await utils.post(utils.get_url("login/getUsers"), {})
+            result = await utils.post(utils.get_url("login/getUsers"), {})
+            # same rule as a save: only a real user list may become the model,
+            # an error object would break the grid ("data is not iterable")
+            applied = users_grid.apply_result([], result)
+            self.users = applied[0]
+            show_error(applied[1])
             plist.get_server().data = self.users
             plist.refresh()
 
