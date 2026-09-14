@@ -5,6 +5,8 @@ deploy
 /docs/pictures/*
 !/docs/pictures/screenshot_1.png
 !/docs/pictures/screenshot_2.png
+!/docs/pictures/screenshot_3.png
+!/docs/pictures/screenshot_4.png
 node_modules
 transcrypt/python/__target__
 transcrypt/**/*.json
