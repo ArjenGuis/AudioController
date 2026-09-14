@@ -22,7 +22,7 @@ jobs:
     name: pytest op python ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: testsuite in een python:${{ matrix.python }}-container
         # USE_VIRTUAL_SOUNDCARD=False: een container heeft geen ALSA, en het
