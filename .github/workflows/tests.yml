@@ -1,0 +1,43 @@
+name: tests
+
+# De testsuite draait in een Docker-container, zodat de versie waarop de Pi's
+# draaien (Python 3.7) hier echt getest wordt: de runner zelf heeft die versie
+# niet meer. Python 3.7 staat vooraan omdat de Pi's daarop draaien; 3.9 en 3.11
+# houden de ontwikkelmachines in de gaten. Zie CLAUDE.md (#16: een verschil
+# tussen 3.7 en nieuwer legde login en logout plat).
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.7", "3.9", "3.11"]
+
+    name: pytest op python ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: testsuite in een python:${{ matrix.python }}-container
+        # USE_VIRTUAL_SOUNDCARD=False: een container heeft geen ALSA, en het
+        # aanmaken van de loopback-kaart gaat via 'sudo modprobe' -- dat bestaat
+        # in een kale python-image niet. De kopie naar /build houdt de
+        # werkkopie schoon (pip schrijft egg-info in de broncode).
+        run: |
+          docker run --rm \
+            -e USE_VIRTUAL_SOUNDCARD=False \
+            -v "$PWD":/src:ro \
+            python:${{ matrix.python }} \
+            sh -c '
+              set -e
+              cp -r /src /build
+              cd /build/audio_controller
+              pip install --quiet --no-cache-dir . pytest
+              python -m pytest -q
+            '
