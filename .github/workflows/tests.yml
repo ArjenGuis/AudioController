@@ -11,6 +11,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Een nieuwe push op dezelfde branch maakt de vorige run overbodig: breek die af.
+# Dat scheelt de helft van de container-pulls bij een branch die ook een pull
+# request heeft (push en pull_request vuren dan allebei).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
