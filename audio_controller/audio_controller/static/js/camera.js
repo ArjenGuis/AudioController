@@ -22,12 +22,18 @@ $(function() {
 	var $camAvailable = null;
 	var $videoAvailable = null;
 	var $streamPublish = null;
+	// een camera die wel antwoordt maar de opdracht niet uitvoert (bijvoorbeeld een
+	// SOAP-fout op de presets): zonder deze melding zag de operator een leeg
+	// presetpaneel en verder niets, alsof alles in orde was
+	var $camError = null;
 	// volgnummer per camerakeuze, zodat een laat antwoord van de vorige camera
 	// de melding (of de videostream) van de huidige niet overschrijft
 	var $liveSeq = 0;
 
 	function renderLiveAlert(){
-		if( $camAvailable === false ){
+		if( $camError !== null ){
+			$('#live .alert').text($camError).show();
+		} else if( $camAvailable === false ){
 			$('#live .alert').text("Camera is niet beschikbaar.").show();
 		} else if( $videoAvailable === false ){
 			$('#live .alert').text("Video is niet beschikbaar.").show();
@@ -188,9 +194,20 @@ $(function() {
 				}
 				if( $response.err == 'connection' ){
 					$('#live').show();
+					$camError = null;
 					$camAvailable = false;
 					renderLiveAlert();
+				} else if( $response.err ){
+					// de camera is bereikbaar, maar de opdracht faalde (handlers.py
+					// maakt hier 'fout' van). Zeg dat, in plaats van een leeg
+					// presetpaneel te tonen alsof er niets aan de hand is.
+					$('#live').show();
+					$camError = "Onverwachte fout bij de camera.";
+					$camAvailable = true;
+					renderLiveAlert();
+					$('#presets ul').empty();
 				} else {
+					$camError = null;
 					$camAvailable = true;
 					renderLiveAlert();
 

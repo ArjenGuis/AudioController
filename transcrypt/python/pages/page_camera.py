@@ -198,7 +198,10 @@ class Page(ElementWrapper):
                 # load live
                 uri = await utils.post(utils.get_url("camera/getLive"), {'id':self.camid})
 
-                if uri['success']:
+                # getLive antwoordt met success=True en uri=False als de camera de
+                # stream-URL niet geeft. Zonder deze controle werd dat
+                # "ws://host:8088false" -- een zwarte speler zonder melding.
+                if uri['success'] and uri['uri']:
                     ws = f"ws://{cam.url_extern}:{cam.port_ws}"
                     video = E('video').attr('id','preview').attr('data-host',ws).attr('data-stream',uri['uri']).attr('autoplay','').attr('muted','').attr('playsinline','').attr('width','100%')
                     video.element.muted = True
@@ -215,8 +218,10 @@ class Page(ElementWrapper):
                         wfs.attachMedia(video.element, mediauri);
                     ''')
                 else:
+                    # de handler stuurt geen 'error'-sleutel mee; die uitlezen gaf
+                    # letterlijk "undefined" op het scherm
                     div_live_err.append(
-                        E('p').text(uri['error'])
+                        E('div').attr('class','alert alert-danger').text("Video is niet beschikbaar.")
                     )
 
         async def checkActivePreset():

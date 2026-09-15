@@ -73,31 +73,61 @@ def profile_resolution(profile) -> int | None:
 
 
 def select_stream_profile(profiles):
-    """Kies het profiel voor het beeld: de op een na zwaarste stream.
+    """Kies het profiel voor het beeld: de zwaarste stream onder de hoofdstream.
 
     De hoofdstream is te zwaar voor dit gebruik. De browser kan hem niet
     bijhouden, buffert het verschil en loopt daardoor de hele dienst verder
     achter -- bij de tussenzang zo'n vier minuten. De substream is van lagere
     kwaliteit en juist hiervoor bedoeld.
 
-    Bewust niet het allerlichtste profiel: veel camera's bieden naast main en
-    sub nog een 'mobile'-stream van 352x288 aan, en daarmee is een beeld niet
-    meer uit te kaderen. Meldt de camera niet van alle profielen een resolutie,
-    dan volgen we de ONVIF-volgorde (hoofdstream eerst, substream tweede). Een
-    camera met maar een profiel houdt dat profiel: een vaste index [1] liep
-    daarop stuk met een IndexError, en dat werd in de app 'Verbinding met ...
-    mislukt'.
+    Daarom niet simpelweg de laagste resolutie: camera's bieden vaak ook een
+    'mobile'-stream van 352x288 aan, en daarmee is een beeld niet meer uit te
+    kaderen. En niet de tweede op volgorde: wie de hoofdstream twee keer
+    aanbiedt (H.264 en H.265) zou daarmee opnieuw de zware stream krijgen.
+    Dus: de hoogste resolutie die strikt onder de hoogste ligt.
+
+    Profielen die 0 beeldpunten melden doen niet mee (geen bruikbare stream).
+    Meldt de camera van te weinig profielen een resolutie, dan valt hij terug op
+    de ONVIF-volgorde: hoofdstream eerst, substream tweede. Een camera met maar
+    een profiel houdt dat profiel -- een vaste index [1] liep daarop stuk met een
+    IndexError, en dat werd in de app 'Verbinding met ... mislukt'.
+    """
+    candidates = []
+    for profile in profiles:
+        resolution = profile_resolution(profile)
+        if resolution is not None and resolution <= 0:
+            continue  # 0x0 is geen stream om naar te kijken
+        candidates.append((resolution, profile))
+
+    if not candidates:
+        return None
+
+    measured = [(res, i) for i, (res, _) in enumerate(candidates) if res is not None]
+    if len(measured) > 1:
+        heaviest = max(res for res, _ in measured)
+        below = [(res, i) for res, i in measured if res < heaviest]
+        if below:
+            # zwaarste daaronder; bij gelijke resolutie de eerste in ONVIF-volgorde
+            return candidates[max(below, key=lambda item: (item[0], -item[1]))[1]][1]
+
+    return candidates[1][1] if len(candidates) > 1 else candidates[0][1]
+
+
+def select_ptz_profile(profiles):
+    """Kies het profiel voor de bediening: het eerste met een PTZConfiguration.
+
+    PTZ-opdrachten (presets, bewegen) worden geweigerd met een SOAP-fout als het
+    meegegeven profiel geen PTZ-configuratie heeft, en zo'n fout komt in de
+    camera-app niet als 'camera onbereikbaar' binnen maar als een leeg
+    presetpaneel. Meldt geen enkel profiel een PTZConfiguration, dan blijft het
+    bij het eerste profiel: die waarde is jarenlang in productie gebruikt.
     """
     if not profiles:
         return None
-
-    resolutions = [profile_resolution(p) for p in profiles]
-    if all(r is not None for r in resolutions):
-        order = sorted(range(len(profiles)), key=lambda i: (-resolutions[i], i))
-    else:
-        order = list(range(len(profiles)))
-
-    return profiles[order[1] if len(order) > 1 else order[0]]
+    for profile in profiles:
+        if getattr(profile, "PTZConfiguration", None) is not None:
+            return profile
+    return profiles[0]
 
 
 @dataclass
@@ -173,7 +203,7 @@ class Camera:
             # substream een PTZConfiguration heeft, en zonder die configuratie
             # geeft de camera een SOAP-fout op presets en bewegen -- wat in de
             # app als 'geen presets, geen melding' zichtbaar zou worden.
-            self._profile = profiles[0]
+            self._profile = select_ptz_profile(profiles)
             self._stream_profile = select_stream_profile(profiles)
         except Exception as err:
             raise ConnectionError(

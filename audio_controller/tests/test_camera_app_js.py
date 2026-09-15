@@ -39,3 +39,36 @@ def test_username_comes_from_the_server_not_the_input_field():
     src = _source()
     assert "setUsername( $('#login #current-username').val() )" not in src
     assert "showLoggedIn( $response.username )" in src
+
+
+# --- de SPA-camerapagina (transcrypt), zelfde soort bewaking ---------------
+# Ook deze code draait nergens in de suite. De bugs die dit afdekt: getLive
+# antwoordt met success=True en uri=False als de camera geen stream-URL geeft,
+# en de pagina plakte dat aan elkaar tot "ws://host:8088false"; de foutmelding
+# las een 'error'-sleutel uit die de handler niet stuurt, dus er stond letterlijk
+# "undefined" op het scherm.
+
+PAGE_CAMERA = (Path(__file__).resolve().parents[2] / "transcrypt" / "python"
+               / "pages" / "page_camera.py")
+
+
+def test_spa_checks_the_stream_uri_before_building_a_websocket_url():
+    src = PAGE_CAMERA.read_text(encoding="utf-8")
+    assert "if uri['success'] and uri['uri']:" in src
+
+
+def test_spa_does_not_print_an_error_key_the_server_never_sends():
+    src = PAGE_CAMERA.read_text(encoding="utf-8")
+    assert "uri['error']" not in src
+
+
+# --- camera.js: een camera die antwoordt maar faalt, moet zichtbaar zijn ---
+
+def test_an_unexpected_camera_error_is_shown_instead_of_an_empty_panel():
+    src = _source()
+    assert "$camError" in src
+    # de tak voor een err die niet 'connection' is
+    assert "} else if( $response.err ){" in src
+    # en renderLiveAlert toont hem
+    body = src.split("function renderLiveAlert(", 1)[1].split("\n\t}", 1)[0]
+    assert "$camError" in body
