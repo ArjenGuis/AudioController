@@ -99,7 +99,35 @@ def test_get_binary_returns_json_bytes(tmp_settings_file):
 def test_set_binary_rejects_blank_uploaded_password(tmp_settings_file):
     # review: an uploaded user with a blank password must NOT be hashed into a
     # working empty-password account; the whole upload is refused.
+    # settings.users is module-level state: begin bij de standaardgebruikers in
+    # plaats van bij wat een eerdere test heeft achtergelaten (dit leunde op het
+    # wissen door een upload met een lege gebruikerslijst -- dat wist nu niets meer).
+    settings.restore()
     settings.settings.title = "KeepMe"
     settings.set_binary(json.dumps(_store_with_user("")).encode("utf-8"))
     assert settings.settings.title == "KeepMe"                     # upload ignored
     assert not any(u.username == "imported" for u in settings.users)
+
+
+def test_set_binary_refuses_an_upload_without_any_user(tmp_settings_file):
+    # Een bestand met een lege gebruikerslijst wist elk account: use_from_store
+    # doet users.clear() en zet er niets voor terug, en save() legt dat vast.
+    # Daarna is er niemand meer die op de externe poort kan inloggen. Een echte
+    # back-up heeft altijd gebruikers, dus dit is een kapot bestand: weiger het
+    # in zijn geheel, zoals ook bij een leeg wachtwoord gebeurt.
+    settings.update_users([{"username": "beheer", "password": "Sterk!wachtwoord9",
+                            "admin": True}])
+    store = _store_with_user(user.hash_password("Str0ngPass!42"))
+    store["users"] = []
+    settings.set_binary(json.dumps(store).encode("utf-8"))
+    assert [u.username for u in settings.users] == ["beheer"]
+
+
+def test_set_binary_without_a_users_key_falls_back_to_the_default_admin(tmp_settings_file):
+    # Een ontbrekende sleutel is iets anders dan een lege lijst: upgrade() zet
+    # daar de standaardgebruiker voor terug, en die moet blijven werken.
+    store = _store_with_user(user.hash_password("Str0ngPass!42"))
+    del store["users"]
+    settings.set_binary(json.dumps(store).encode("utf-8"))
+    assert len(settings.users) >= 1
+    assert any(u.admin for u in settings.users)
