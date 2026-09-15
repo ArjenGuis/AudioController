@@ -73,33 +73,31 @@ def profile_resolution(profile) -> int | None:
 
 
 def select_stream_profile(profiles):
-    """Kies het profiel voor beeld en bediening: het lichtste dat de camera biedt.
+    """Kies het profiel voor het beeld: de op een na zwaarste stream.
 
     De hoofdstream is te zwaar voor dit gebruik. De browser kan hem niet
     bijhouden, buffert het verschil en loopt daardoor de hele dienst verder
     achter -- bij de tussenzang zo'n vier minuten. De substream is van lagere
     kwaliteit en juist hiervoor bedoeld.
 
-    Kies daarom het profiel met de laagste resolutie. Meldt de camera geen
-    resoluties, dan volgen we de ONVIF-volgorde (hoofdstream eerst, substream
-    tweede). Een camera met maar een profiel houdt dat profiel: een vaste
-    index [1] liep daarop stuk met een IndexError, en dat werd in de app
-    'Verbinding met ... mislukt'.
+    Bewust niet het allerlichtste profiel: veel camera's bieden naast main en
+    sub nog een 'mobile'-stream van 352x288 aan, en daarmee is een beeld niet
+    meer uit te kaderen. Meldt de camera niet van alle profielen een resolutie,
+    dan volgen we de ONVIF-volgorde (hoofdstream eerst, substream tweede). Een
+    camera met maar een profiel houdt dat profiel: een vaste index [1] liep
+    daarop stuk met een IndexError, en dat werd in de app 'Verbinding met ...
+    mislukt'.
     """
     if not profiles:
         return None
 
-    measured = [
-        (resolution, index, profile)
-        for index, (resolution, profile) in enumerate(
-            (profile_resolution(p), p) for p in profiles
-        )
-        if resolution is not None
-    ]
-    if measured:
-        return min(measured, key=lambda item: (item[0], item[1]))[2]
+    resolutions = [profile_resolution(p) for p in profiles]
+    if all(r is not None for r in resolutions):
+        order = sorted(range(len(profiles)), key=lambda i: (-resolutions[i], i))
+    else:
+        order = list(range(len(profiles)))
 
-    return profiles[1] if len(profiles) > 1 else profiles[0]
+    return profiles[order[1] if len(order) > 1 else order[0]]
 
 
 @dataclass
@@ -136,6 +134,8 @@ class Camera:
     _ptz: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
     _device: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
     _profile: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
+    # het profiel voor het beeld (substream); PTZ gebruikt _profile
+    _stream_profile: Any | None = field(init=False, default=None, repr=False, metadata={"persist": False})
     _PTZ_SPEED = 0.075
     _PTZ_DIRECTIONS = {
         "left":      (-_PTZ_SPEED,  0,  0),
@@ -166,9 +166,15 @@ class Camera:
             self._media = self._cam.create_media_service()
             self._ptz = self._cam.create_ptz_service()
             self._device = self._cam.create_devicemgmt_service()
-            self._profile = select_stream_profile(self._media.GetProfiles())
-            if self._profile is None:
+            profiles = self._media.GetProfiles()
+            if not profiles:
                 raise ValueError(f"camera '{self.name}' biedt geen ONVIF-profielen")
+            # PTZ blijft op het hoofdprofiel: ONVIF schrijft niet voor dat een
+            # substream een PTZConfiguration heeft, en zonder die configuratie
+            # geeft de camera een SOAP-fout op presets en bewegen -- wat in de
+            # app als 'geen presets, geen melding' zichtbaar zou worden.
+            self._profile = profiles[0]
+            self._stream_profile = select_stream_profile(profiles)
         except Exception as err:
             raise ConnectionError(
                 f"Verbinding met '{self.name}' mislukt"
@@ -303,7 +309,7 @@ class Camera:
                 }
             }
 
-            request.ProfileToken = self._profile.token
+            request.ProfileToken = self._stream_profile.token
 
             return urlparse(self._media.GetStreamUri(request).Uri).path
 
