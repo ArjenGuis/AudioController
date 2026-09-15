@@ -89,3 +89,24 @@ def test_orig_username_is_not_stored_on_the_user_record(tmp_settings_file):
                             "password": "Sterk!wachtwoord9"}])
     assert not hasattr(settings.users[0], "orig_username")
     assert "orig_username" not in settings.file.read_text(encoding="utf-8")
+
+
+def test_an_empty_user_list_is_refused(tmp_settings_file):
+    # Een lege lijst wist elk account (users[:] = new_list) en daarna kan niemand
+    # meer inloggen op de externe poort. Dat is nooit de bedoeling: een POST met
+    # {} of een kapotte client mag dat niet kunnen.
+    settings.update_users([{"username": "beheer", "password": "Sterk!wachtwoord9",
+                            "admin": True}])
+    with pytest.raises(ValueError):
+        settings.update_users([])
+    assert [u.username for u in settings.users] == ["beheer"]
+
+
+def test_a_user_without_a_name_is_refused(tmp_settings_file):
+    # get_user("") matcht zo'n account, dus inloggen op een naamloze gebruiker kon
+    settings.update_users([{"username": "beheer", "password": "Sterk!wachtwoord9",
+                            "admin": True}])
+    for naam in ("", "   ", None):
+        with pytest.raises(ValueError):
+            settings.update_users([{"username": naam, "password": "Sterk!wachtwoord9"}])
+    assert [u.username for u in settings.users] == ["beheer"]

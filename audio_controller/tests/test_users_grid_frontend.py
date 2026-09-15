@@ -57,34 +57,55 @@ def test_new_row_has_every_field_the_server_expects():
 
 # --- when may the grid post? ---------------------------------------------
 
-def test_incomplete_new_row_is_not_posted():
-    # the grid saves on every onchange; typing only the username must not fire a
-    # save that the server can only refuse.
-    rows = [_row("beheer", orig="beheer"), _row("pietjepuk")]
-    assert users_grid.validate(rows) != ""
+def test_an_unfinished_new_row_does_not_block_the_other_changes():
+    # "Toevoegen" zet een lege rij neer en er is geen verwijderknop. Die rij mag
+    # niet elke andere wijziging tegenhouden: hij gaat gewoon niet mee tot hij af
+    # is, met een melding erbij.
+    beheer = _row("beheer", orig="beheer", admin=True)
+    posted, message = users_grid.prepare_save([beheer, _row("pietjepuk")])
+    assert posted == [beheer]
+    assert message != ""
 
 
-def test_new_row_with_username_and_password_is_posted():
+def test_a_finished_new_row_is_posted_along():
     rows = [_row("beheer", orig="beheer"),
             _row("pietjepuk", password="ditiseenmoeilijkwachtwoord")]
-    assert users_grid.validate(rows) == ""
+    posted, message = users_grid.prepare_save(rows)
+    assert posted == rows
+    assert message == ""
 
 
 def test_renamed_row_may_be_posted_without_a_password():
     # issue #23 testcase 2: a rename keeps the stored password (the server
     # matches on orig_username), so no password is required.
     rows = [_row("kostert", orig="koster", camera=True)]
-    assert users_grid.validate(rows) == ""
+    posted, message = users_grid.prepare_save(rows)
+    assert posted == rows
+    assert message == ""
 
 
-def test_empty_username_is_not_posted():
-    rows = [_row("", password="ditiseenmoeilijkwachtwoord")]
-    assert users_grid.validate(rows) != ""
+def test_an_existing_row_without_a_username_blocks_the_save():
+    # die rij weglaten zou het account wissen, en zo opslaan geeft een account
+    # zonder naam waar get_user("") op matcht: allebei fout, dus niets versturen.
+    posted, message = users_grid.prepare_save([_row("", orig="koster")])
+    assert posted is None
+    assert message != ""
+
+
+def test_an_empty_list_is_never_posted():
+    # een lijst zonder rijen wist elk account
+    posted, message = users_grid.prepare_save([_row("nieuw")])
+    assert posted is None
+    assert message != ""
+    assert users_grid.prepare_save([])[0] is None
 
 
 def test_duplicate_username_is_caught_before_posting():
-    rows = [_row("beheer", orig="beheer"), _row("Beheer", password="Sterk!wachtwoord9")]
-    assert users_grid.validate(rows) != ""
+    rows = [_row("beheer", orig="beheer"),
+            _row("Beheer", password="Sterk!wachtwoord9")]
+    posted, message = users_grid.prepare_save(rows)
+    assert posted is None
+    assert message != ""
 
 
 # --- what the grid does with the server's answer --------------------------
@@ -113,6 +134,26 @@ def test_a_rejected_save_without_an_error_text_still_reports_something():
     new_rows, error = users_grid.apply_result(rows, {"success": False})
     assert new_rows == rows
     assert error != ""
+
+
+def test_a_forced_password_change_says_so():
+    # dit antwoord heeft geen 'error'-sleutel; "Opslaan mislukt" laat de beheerder
+    # raden waarom er niets gebeurt
+    rows = [_row("koster", orig="koster")]
+    _, error = users_grid.apply_result(rows, {"success": False,
+                                              "must_change_password": True})
+    assert error != users_grid.MSG_FAILED
+    assert "wachtwoord" in error.lower()
+
+
+def test_a_missing_answer_does_not_crash_the_grid():
+    # Transcrypt vertaalt '== None' naar '== null', dat undefined meevangt;
+    # 'is None' zou dat niet doen en de grid liep er dan op stuk
+    rows = [_row("koster", orig="koster")]
+    kept, error = users_grid.apply_result(rows, None)
+    assert kept == rows
+    assert error != ""
+    assert users_grid.field(None, "username") is None
 
 
 def test_a_login_required_answer_does_not_become_the_model():
@@ -154,3 +195,37 @@ def test_new_rows_come_from_the_shared_helper():
     body = _users_section()
     assert "users_grid.new_row()" in body
     assert '"password"' not in body.split("def add_item", 1)[1].split("\n\n", 1)[0]
+
+
+def test_a_new_row_that_could_not_be_saved_stays_on_screen():
+    # anders verdwijnt de half ingevulde rij zodra een andere wijziging wel wordt
+    # opgeslagen: de verse lijst van de server kent hem immers niet
+    beheer = _row("beheer", orig="beheer")
+    nieuw = _row("pietjepuk")
+    posted, _ = users_grid.prepare_save([beheer, nieuw])
+    assert users_grid.unsaved_rows([beheer, nieuw], posted) == [nieuw]
+
+
+def test_a_saved_new_row_is_not_kept_twice():
+    # deze rij ging wel mee; hem erbij houden zou hem dubbel tonen zodra de
+    # server hem terugstuurt
+    rows = [_row("pietjepuk", password="ditiseenmoeilijkwachtwoord")]
+    posted, _ = users_grid.prepare_save(rows)
+    assert users_grid.unsaved_rows(rows, posted) == []
+
+
+def test_the_fresh_list_and_the_unsaved_rows_end_up_in_one_list():
+    saved = [_row("beheer", orig="beheer")]
+    leftover = [_row("pietjepuk")]
+    merged = users_grid.keep_unsaved(saved, leftover)
+    assert merged == saved + leftover
+    assert isinstance(merged, list)
+
+
+def test_a_refresh_keeps_rows_that_were_never_saved():
+    # de server meldt elke wijziging, waarna de grid de lijst opnieuw ophaalt.
+    # Een nog niet opgeslagen rij staat niet in dat antwoord.
+    nieuw = _row("pietjepuk")
+    lokaal = [_row("beheer", orig="beheer"), nieuw]
+    vers = [_row("beheer", orig="beheer"), _row("koster", orig="koster")]
+    assert users_grid.keep_unsaved(vers, users_grid.unsaved_rows(lokaal, [])) == vers + [nieuw]

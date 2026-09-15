@@ -385,6 +385,20 @@ class Login(BaseHandler):
         elif action == 'setUsers':
             args = self.body_to_json()
             users = args.get("users", [])
+            # Wie zichzelf hernoemt houdt een cookie met de oude naam over:
+            # get_user() vindt die niet meer en elke admin-actie antwoordt daarna
+            # met "Geen rechten", zonder uitleg. setUser herstelt de cookie al na
+            # een zelf-hernoeming; hier ontbrak dat, en sinds de grid hernoemen
+            # toestaat is het bereikbaar. (#23)
+            renamed_self_to = ""
+            if self.current_user:
+                for obj in users:
+                    if not isinstance(obj, dict):
+                        continue
+                    was = str(obj.get("orig_username", "") or "").strip()
+                    now = str(obj.get("username", "") or "").strip()
+                    if was.lower() == str(self.current_user).lower() and now and now != was:
+                        renamed_self_to = now
             try:
                 settings.update_users(users)
             except ValueError as e:
@@ -394,6 +408,8 @@ class Login(BaseHandler):
             except Exception:
                 self.write(dumps({"success": False, "error": "Ongeldige gebruikerslijst"}))
                 return
+            if renamed_self_to:
+                self.set_cookie_username(renamed_self_to)
             write_users()
             await notify_change()
 

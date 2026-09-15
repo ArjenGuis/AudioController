@@ -73,13 +73,16 @@ class _GridFlow(AsyncHTTPTestCase):
         return self.rows
 
     def save_grid(self):
-        """save_changes(): post every row, then apply the answer to the model"""
-        problem = users_grid.validate(self.rows)
-        if problem:
-            self.error = problem
+        """save_changes(): post wat verstuurd mag worden, en verwerk het antwoord"""
+        rows, message = users_grid.prepare_save(self.rows)
+        if rows is None:
+            self.error = message
             return None
-        result = self._post("/login/setUsers", {"users": self.rows})
-        self.rows, self.error = users_grid.apply_result(self.rows, result)
+        leftover = users_grid.unsaved_rows(self.rows, rows)
+        result = self._post("/login/setUsers", {"users": rows})
+        applied, error = users_grid.apply_result(self.rows, result)
+        self.rows = applied if error else applied + leftover
+        self.error = error or message
         return result
 
     def edit(self, index, attr, value):
@@ -204,3 +207,100 @@ class TestUsersGridFlow(_GridFlow):
         result = self._post("/login/setUsers", {"users": self.rows})
         self.assertFalse(result["success"])
         self.assertTrue(result["error"])
+
+
+class TestStrayRowDoesNotBlockTheGrid(_GridFlow):
+
+    def test_an_unfinished_new_row_does_not_block_another_change(self):
+        # "Toevoegen" aangeklikt en niets ingevuld; daarna het camera-vinkje van
+        # een bestaande gebruiker omzetten. Dat moet gewoon opgeslagen worden.
+        self.load_grid()
+        self.rows.append(users_grid.new_row())
+        self.edit(1, "admin", True)
+
+        self.assertTrue(settings.users[1].admin)          # wel opgeslagen
+        self.assertNotEqual(self.error, "")               # met een melding erover
+        self.assertEqual(len(self.rows), 3)               # de lege rij staat er nog
+        self.assertEqual([u.username for u in settings.users], ["beheer", "koster"])
+
+    def test_the_stray_row_is_saved_as_soon_as_it_is_complete(self):
+        self.load_grid()
+        self.rows.append(users_grid.new_row())
+        self.edit(1, "admin", True)
+        self.rows[2]["username"] = "pietjepuk"
+        self.edit(2, "password", "ditiseenmoeilijkwachtwoord")
+
+        self.assertEqual(self.error, "")
+        self.assertEqual([u.username for u in settings.users],
+                         ["beheer", "koster", "pietjepuk"])
+
+
+class TestSelfRenameKeepsTheSession(AsyncHTTPTestCase):
+    """De externe poort, waar wel ingelogd moet worden.
+
+    setUser (het wijzigformulier in de camera-app) herstelt de cookie na een
+    zelf-hernoeming; setUsers deed dat niet. Dat viel niet op zolang hernoemen
+    in de grid onmogelijk was -- nu wel: de cookie houdt de oude naam vast,
+    get_user() vindt die niet meer, en elke admin-actie antwoordt daarna met
+    "Geen rechten" zonder enige uitleg.
+    """
+
+    def get_app(self):
+        return appmod.make_app(internal=False)
+
+    def setUp(self):
+        super().setUp()
+        settings.restore()
+        settings.update_users([
+            {"username": "beheer", "password": "Sterk!wachtwoord9",
+             "admin": True, "camera": True},
+        ])
+        r = self.fetch("/", method="GET")
+        m = re.search(r"_xsrf=([^;]+)", "; ".join(r.headers.get_list("Set-Cookie")))
+        self.xsrf = m.group(1)
+        self.cookie = f"_xsrf={self.xsrf}"
+        login = self._post("/login/login", {"username": "beheer",
+                                            "password": "Sterk!wachtwoord9"})
+        assert login["success"], login
+        self._remember_cookies(self._last_headers)
+
+    def _remember_cookies(self, headers):
+        for c in headers.get_list("Set-Cookie"):
+            name_value = c.split(";")[0]
+            name = name_value.split("=")[0]
+            parts = [p for p in self.cookie.split("; ") if not p.startswith(name + "=")]
+            self.cookie = "; ".join(parts + [name_value])
+
+    def _post(self, path, body):
+        r = self.fetch(path, method="POST", body=json.dumps(body), headers={
+            "Content-Type": "application/json",
+            "X-Xsrftoken": self.xsrf,
+            "Cookie": self.cookie,
+        })
+        self.assertEqual(r.code, 200)
+        self._last_headers = r.headers
+        return json.loads(r.body)
+
+    def test_renaming_yourself_keeps_you_logged_in(self):
+        rows = self._post("/login/getUsers", {})
+        rows[0]["username"] = "beheerder"
+        result = self._post("/login/setUsers", {"users": rows})
+        self.assertIsInstance(result, list)
+        self._remember_cookies(self._last_headers)      # de app stuurt de nieuwe naam mee
+
+        # de sessie is nog geldig: getUsers is admin-only
+        again = self._post("/login/getUsers", {})
+        self.assertIsInstance(again, list)
+        self.assertEqual([r["username"] for r in again], ["beheerder"])
+
+    def test_renaming_someone_else_leaves_your_own_cookie_alone(self):
+        settings.update_users([
+            {"username": "beheer", "password": "Sterk!wachtwoord9", "admin": True},
+            {"username": "koster", "password": "Koster!wachtwoord9", "camera": True},
+        ])
+        rows = self._post("/login/getUsers", {})
+        rows[1]["username"] = "kostert"
+        self._post("/login/setUsers", {"users": rows})
+        self._remember_cookies(self._last_headers)
+        again = self._post("/login/getUsers", {})
+        self.assertEqual([r["username"] for r in again], ["beheer", "kostert"])

@@ -575,6 +575,9 @@ class Users(AccordionItem):
     def __init__(self):
         super().__init__("Gebruikers")
 
+        # zonder dit gooit "Toevoegen" een TypeError als initialize() faalde
+        self.users = []
+
         # A refused save has to be visible: the grid saves on every onchange, and
         # its error message used to disappear into the model, which then posted
         # the error object back as the user list. (#23)
@@ -584,9 +587,11 @@ class Users(AccordionItem):
         plist = PagedList(self.body.element, "").hide_count().disable_pagination()
         plist.get_styling().table_class("table borderless")
 
-        def show_error(message):
+        def show_error(message, blocking=True):
             if message:
-                alert.inner_html(message).attr("style", "display:block")
+                # .text() en niet .inner_html(): dit is tekst van de server
+                kind = "alert alert-danger" if blocking else "alert alert-warning"
+                alert.attr("class", kind).text(message).attr("style", "display:block")
             else:
                 alert.attr("style", "display:none")
 
@@ -639,22 +644,29 @@ class Users(AccordionItem):
             return
 
         async def save_changes():
-            # Every onchange saves the whole list, so an incomplete row (a new
-            # user without a password yet) must not be posted: the server can
-            # only refuse it. Say what is missing instead. (#23)
-            problem = users_grid.validate(self.users)
-            if problem:
-                show_error(problem)
+            # De grid slaat op bij elke onchange. Een nieuwe rij die nog niet af
+            # is gaat niet mee (de server kan hem alleen weigeren) maar houdt de
+            # rest ook niet tegen; een bestaande rij zonder naam wel. (#23)
+            prepared = users_grid.prepare_save(self.users)
+            rows = prepared[0]
+            if rows is None:
+                show_error(prepared[1])
                 return
+            leftover = users_grid.unsaved_rows(self.users, rows)
             show_error("")
             result = await utils.post(
-                utils.get_url("login/setUsers"), {"users": self.users}
+                utils.get_url("login/setUsers"), {"users": rows}
             )
             # Only a successful save (the fresh user list) may become the model;
             # a refused one keeps the rows being edited, so the admin can fix it.
             applied = users_grid.apply_result(self.users, result)
-            self.users = applied[0]
-            show_error(applied[1])
+            if applied[1]:
+                self.users = applied[0]
+                show_error(applied[1])
+            else:
+                # verse lijst van de server, plus wat nog niet opgeslagen kon worden
+                self.users = users_grid.keep_unsaved(applied[0], leftover)
+                show_error(prepared[1], False)
             plist.get_server().data = self.users
             plist.refresh()
 
@@ -674,8 +686,18 @@ class Users(AccordionItem):
             # same rule as a save: only a real user list may become the model,
             # an error object would break the grid ("data is not iterable")
             applied = users_grid.apply_result([], result)
-            self.users = applied[0]
-            show_error(applied[1])
+            if applied[1]:
+                self.users = applied[0]
+                show_error(applied[1])
+            else:
+                # Deze verversing komt ook ongevraagd langs: de server meldt elke
+                # wijziging, en dan wordt de lijst opnieuw opgehaald. Een rij die
+                # hier nog niet opgeslagen kon worden staat niet in dat antwoord;
+                # zonder dit verdween hij onder de handen van de beheerder, samen
+                # met de melding die vertelde waarom.
+                self.users = users_grid.keep_unsaved(
+                    applied[0], users_grid.unsaved_rows(self.users, [])
+                )
             plist.get_server().data = self.users
             plist.refresh()
 
