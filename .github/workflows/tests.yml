@@ -12,15 +12,21 @@ on:
   workflow_dispatch:
 
 # Een nieuwe push op dezelfde branch maakt de vorige run overbodig: breek die af.
-# Dat scheelt de helft van de container-pulls bij een branch die ook een pull
-# request heeft (push en pull_request vuren dan allebei).
+# github.ref is bij een pull_request 'refs/pull/<n>/merge' en niet de branch, dus
+# groepeer op head_ref; anders vallen de push-run en de PR-run in verschillende
+# groepen. (Komen die uit verschillende repositories -- fork en upstream -- dan
+# kan concurrency ze sowieso niet samenvoegen.)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

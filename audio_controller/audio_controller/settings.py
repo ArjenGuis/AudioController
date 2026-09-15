@@ -324,6 +324,14 @@ def set_binary(obj):
         return
     if not _sanitize_uploaded_users(store):
         return  # reject an upload that carries a blank/invalid user password
+    # Een LEGE gebruikerslijst zou elk account wissen (use_from_store doet
+    # users.clear()), en daarna kan niemand meer op de externe poort inloggen.
+    # Een echte back-up heeft altijd gebruikers, dus dit is een kapot of
+    # handgemaakt bestand: pas de rest toe en laat de accounts staan. (Een
+    # ONTBREKENDE sleutel is iets anders: daar zet upgrade() de standaard-
+    # gebruiker voor terug.)
+    if 'users' in store and not store['users']:
+        store['users'] = [asdict(u) for u in users]
     # An uploaded file bypasses the admin-UI update_cameras() path, so re-apply the
     # camera host guard here too (S-M4): a bad url_intern (loopback / injection)
     # rejects the whole upload rather than reaching http://{url_intern}/ajaxcom.
@@ -481,9 +489,15 @@ def validate_destination_attribute(name: str, value):
         if name == 'name':
             return value[0:50]  # max 50 characters
         elif name == 'port_url_file':  # must be IN port
-            if not (is_OUT_port(value) or is_url(value) or is_file(value)):
+            # Een url-bestemming is 'url;bitrate[;kanalen]' en ffmpeg krijgt
+            # alleen het eerste veld te zien (stream.ffmpeg_output_for_url).
+            # Valideer dus precies dat veld: over de hele string las urlparse
+            # 'http://127.0.0.1;64K' als host '127.0.0.1;64k' -- geen interne
+            # host -- terwijl ffmpeg wel naar de loopback van de Pi ging.
+            url = str(value).split(";")[0]
+            if not (is_OUT_port(value) or is_url(url) or is_file(url)):
                 return None
-            if is_url(value) and _is_internal_host(value):
+            if is_url(url) and _is_internal_host(url):
                 return None  # block SSRF to internal hosts (F)
         return value
     except:
