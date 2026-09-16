@@ -5,14 +5,22 @@ Control the routing of audio using a Raspberry Pi. This software runs on a Raspb
 Further, it can read audio from an url, and send it to a configurable input of the ITEC.
 And the other way around: it is possible to send audio from an configurable ITEC output to an Icecast mountpoint.
 
-The userinferface is created in the Dutch language. It consists of 2 pages; Control and Settings:
+The userinferface is created in the Dutch language. It consists of 4 pages; Audio, Psalmbord, Camera and Settings:
 
-## Control screen
+## Audio screen
 <img src="docs/pictures/screenshot_1.png" alt="drawing" width="700"/>
 <p>
 
 ## Settings screen
 <img src="docs/pictures/screenshot_2.png" alt="drawing" width="700"/>
+<p>
+
+## Psalmbord screen
+<img src="docs/pictures/screenshot_3.png" alt="drawing" width="700"/>
+<p>
+
+## Camera screen
+<img src="docs/pictures/screenshot_4.png" alt="drawing" width="700"/>
 <p>
 
 # Howto deploy on raspberry pi

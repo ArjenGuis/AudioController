@@ -134,6 +134,24 @@ class Hardening(AsyncHTTPTestCase):
         assert settings.validate_source_attribute("port_url", "http://ro1.reformatorischeomroep.nl:8003/live")
         assert settings.validate_source_attribute("port_url", "IN1") == "IN1"
 
+    def test_internal_host_is_not_hidden_behind_the_bitrate_suffix(self):
+        # Een bestemming is 'url;bitrate[;kanalen]' en ffmpeg krijgt alleen het
+        # eerste veld te zien. Valideerde de hele string, dan las urlparse
+        # 'http://127.0.0.1;64K' als host '127.0.0.1;64k' -- geen interne host,
+        # dus toegestaan -- terwijl ffmpeg er wel degelijk naar de loopback ging.
+        from audio_controller import stream
+        raw = "http://127.0.0.1;64K"
+        assert stream.ffmpeg_output_for_url(raw)[-1] == "http://127.0.0.1"  # wat ffmpeg doet
+        assert settings.validate_destination_attribute("port_url_file", raw) is None
+        for url in ("icecast://source:pw@127.0.0.1;128K",
+                    "http://localhost;64K",
+                    "http://192.168.1.5;64K",
+                    "http://169.254.169.254;64K"):
+            assert settings.validate_destination_attribute("port_url_file", url) is None, url
+        # de normale vorm met suffix blijft geldig
+        assert settings.validate_destination_attribute(
+            "port_url_file", "icecast://source:pw@example.org:8000/mount;128K") is not None
+
     # ---- camera role == what camera.js sends; only non-camera.js actions are admin ----
     def test_camera_role_matches_camera_app(self):
         t, ck = self._prime()

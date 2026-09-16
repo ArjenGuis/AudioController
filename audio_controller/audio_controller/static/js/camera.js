@@ -22,12 +22,18 @@ $(function() {
 	var $camAvailable = null;
 	var $videoAvailable = null;
 	var $streamPublish = null;
+	// een camera die wel antwoordt maar de opdracht niet uitvoert (bijvoorbeeld een
+	// SOAP-fout op de presets): zonder deze melding zag de operator een leeg
+	// presetpaneel en verder niets, alsof alles in orde was
+	var $camError = null;
 	// volgnummer per camerakeuze, zodat een laat antwoord van de vorige camera
 	// de melding (of de videostream) van de huidige niet overschrijft
 	var $liveSeq = 0;
 
 	function renderLiveAlert(){
-		if( $camAvailable === false ){
+		if( $camError !== null ){
+			$('#live .alert').text($camError).show();
+		} else if( $camAvailable === false ){
 			$('#live .alert').text("Camera is niet beschikbaar.").show();
 		} else if( $videoAvailable === false ){
 			$('#live .alert').text("Video is niet beschikbaar.").show();
@@ -53,11 +59,7 @@ $(function() {
 			dataType: 'json',
 			success: function($response){
 				if( $response.success ){
-					$('#cams, #live, #user').show();
-
-					setUsername( $response.username );
-
-					getCameras();
+					showLoggedIn( $response.username );
 				} else {
 					$('#login').show();
 
@@ -73,12 +75,7 @@ $(function() {
 							}),
 							success: function($response){
 								if( $response.success ){
-									$('#login').hide();
-									$('#cams, #user').show();
-									
-									setUsername( $('#login #current-username').val() );
-									
-									getCameras();
+									showLoggedIn( $response.username );
 								} else {
 									$('#login .fout').show();
 								}
@@ -88,6 +85,23 @@ $(function() {
 				}
 			}
 		});
+	}
+
+	// Beide login-paden (al ingelogd via cookie, en net ingelogd via het formulier)
+	// moeten exact dezelfde elementen tonen. Ze stonden apart uitgeschreven en waren
+	// uit elkaar gelopen: het formulier-pad toonde #live niet, dus na een verse login
+	// bleef de videocontainer verborgen tot een refresh (alleen zichtbaar als de
+	// camera onbereikbaar was, want die foutmelding doet zelf $('#live').show()).
+	// De naam komt van de server, niet uit het invoerveld: login is niet
+	// hoofdlettergevoelig, dus "Arjen" hoort als "arjen" in de UI en in het
+	// wijzigformulier te staan (anders hernoemt setUser het account).
+	function showLoggedIn(username){
+		$('#login').hide();
+		$('#cams, #live, #user').show();
+
+		setUsername( username || $('#login #current-username').val() );
+
+		getCameras();
 	}
 
 	function setUsername(username){
@@ -180,9 +194,20 @@ $(function() {
 				}
 				if( $response.err == 'connection' ){
 					$('#live').show();
+					$camError = null;
 					$camAvailable = false;
 					renderLiveAlert();
+				} else if( $response.err ){
+					// de camera is bereikbaar, maar de opdracht faalde (handlers.py
+					// maakt hier 'fout' van). Zeg dat, in plaats van een leeg
+					// presetpaneel te tonen alsof er niets aan de hand is.
+					$('#live').show();
+					$camError = "Onverwachte fout bij de camera.";
+					$camAvailable = true;
+					renderLiveAlert();
+					$('#presets ul').empty();
 				} else {
+					$camError = null;
 					$camAvailable = true;
 					renderLiveAlert();
 
