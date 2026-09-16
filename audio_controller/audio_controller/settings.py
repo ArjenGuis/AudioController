@@ -721,6 +721,11 @@ def update_cameras(new_cameras: List[dict]):
 
 def update_users(new_users: List[dict]):
     try:
+        # De hele gebruikerslijst wordt vervangen, dus een lege lijst wist elk
+        # account en daarna kan niemand meer inloggen op de externe poort. Dat is
+        # nooit een bedoelde opslag: een POST zonder 'users' of een kapotte client.
+        if not new_users:
+            raise ValueError("gebruikerslijst is leeg")
         # index current users by username so a password change is detected by
         # identity, not list position (a reorder/insert no longer re-hashes the
         # wrong user's stored hash), and a blank password means "keep existing".
@@ -728,13 +733,35 @@ def update_users(new_users: List[dict]):
         # an unchanged user.
         existing = {u.username: u for u in users}
         new_list = []
+        claimed = set()
 
         for obj in new_users:
+            # `orig_username` is wire-only routing information, never stored: it
+            # names the record this row came from, so a RENAMED row is still
+            # matched to its stored password. Without it a rename looked like a
+            # brand-new user and could only be saved by also setting a password
+            # -- impossible in a grid that saves every onchange separately. (#23)
+            obj = dict(obj)
+            orig_username = str(obj.pop("orig_username", "") or "").strip()
             usr = user.User(**obj)
             # coerce to str before strip: a None/non-str username must not crash
             # the whole save (corrupt import / admin edit).
-            usr.username = str(validate_user_attribute("username", usr.username) or "").strip()
-            prior = existing.get(usr.username)
+            # None is geen naam: str(None) zou een account opleveren dat letterlijk
+            # "None" heet. Een niet-string die wel een waarde is (een corrupt
+            # import-bestand met 12345) wordt wel gewoon omgezet.
+            usr.username = "" if usr.username is None else str(
+                validate_user_attribute("username", usr.username) or "").strip()
+            # get_user("") matcht een naamloos account, dus zo'n rij mag niet
+            # opgeslagen worden -- ook niet als de client hem toch stuurt.
+            if not usr.username:
+                raise ValueError("een gebruiker moet een gebruikersnaam hebben")
+            prior = existing.get(orig_username or usr.username)
+            if prior is not None:
+                # One stored record belongs to exactly one row. Two rows claiming
+                # it would copy that account's password onto a second username.
+                if prior.username in claimed:
+                    raise ValueError("twee gebruikers verwijzen naar hetzelfde account")
+                claimed.add(prior.username)
             incoming_pw = usr.password
 
             if not incoming_pw or (prior is not None and incoming_pw == prior.password):

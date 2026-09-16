@@ -318,10 +318,15 @@ class Login(BaseHandler):
             # Never expose password hashes to the client (D). The admin grid does
             # not prefill the password field; a blank password on the way back
             # means "keep existing" (see settings.update_users).
+            # `orig_username` travels along so the grid can post a RENAME back:
+            # it names the stored record, which a changed username no longer
+            # does, and keeping the password is what makes a rename possible at
+            # all in a grid that saves every field change on its own. (#23)
             out = []
             for obj in settings.users:
                 d = asdict(obj)
                 d["password"] = ""
+                d["orig_username"] = obj.username
                 out.append(d)
             self.write(dumps(out))
 
@@ -380,6 +385,20 @@ class Login(BaseHandler):
         elif action == 'setUsers':
             args = self.body_to_json()
             users = args.get("users", [])
+            # Wie zichzelf hernoemt houdt een cookie met de oude naam over:
+            # get_user() vindt die niet meer en elke admin-actie antwoordt daarna
+            # met "Geen rechten", zonder uitleg. setUser herstelt de cookie al na
+            # een zelf-hernoeming; hier ontbrak dat, en sinds de grid hernoemen
+            # toestaat is het bereikbaar. (#23)
+            renamed_self_to = ""
+            if self.current_user:
+                for obj in users:
+                    if not isinstance(obj, dict):
+                        continue
+                    was = str(obj.get("orig_username", "") or "").strip()
+                    now = str(obj.get("username", "") or "").strip()
+                    if was.lower() == str(self.current_user).lower() and now and now != was:
+                        renamed_self_to = now
             try:
                 settings.update_users(users)
             except ValueError as e:
@@ -389,6 +408,8 @@ class Login(BaseHandler):
             except Exception:
                 self.write(dumps({"success": False, "error": "Ongeldige gebruikerslijst"}))
                 return
+            if renamed_self_to:
+                self.set_cookie_username(renamed_self_to)
             write_users()
             await notify_change()
 
