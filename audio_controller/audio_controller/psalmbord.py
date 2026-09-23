@@ -86,11 +86,13 @@ class Psalmbord:
 
                 content += "<span class='col2'>:</span>"
 
-                content += "<span class='col3'>"
-                for col3 in col[1].split(" "):
-                    if col3.strip() != "":
-                        content += f"<span>{xhtml_escape(col3)}</span>"
-                content += "</span>"
+                if col[1].strip() != "":
+                    # skip empty col3 
+                    content += "<span class='col3'>"
+                    for col3 in col[1].split(" "):
+                        if col3.strip() != "":
+                            content += f"<span>{xhtml_escape(col3)}</span>"
+                    content += "</span>"
             else:
                 # regel without columns
                 """ replace optional ";" with ":" to prevent splitting and alignment """
