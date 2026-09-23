@@ -8,7 +8,7 @@ E = Element
 
 # copied from fonts.py
 fonts = ["Arial", "Cambria", "Courier New", "Courier Prime", "Georgia", "Gill Sans", "Verdana", "Samsung"]
-fontsizes = list(range(5, 16))
+fontsizes = list(range(5, 21))
 fontweights = list(range(300, 900, 100))
 
 # copied from settings.py
