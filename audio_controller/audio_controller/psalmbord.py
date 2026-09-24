@@ -68,12 +68,15 @@ class Psalmbord:
             css += f" {fonts.fonts.get(self.fontfamily) or fonts.fonts[default_fontfamily]}"
             if r.startswith('_'):
                 css += " title"
-                r = r[1:]
 
             content += f"<div class='{css}'>"
 
             col = r.strip().split(":")
-            if len(col) > 1:
+            if r.startswith('_'):
+                # regel with title is without columns
+                regel_text = r[1:]
+                content += f"<span class='no-col'>{xhtml_escape(regel_text)}</span>"
+            elif len(col) > 1:
                 # regel with three columns
                 content += "<span class='col1'>"
                 for col1 in col[0].split(" "):
@@ -83,11 +86,13 @@ class Psalmbord:
 
                 content += "<span class='col2'>:</span>"
 
-                content += "<span class='col3'>"
-                for col3 in col[1].split(" "):
-                    if col3.strip() != "":
-                        content += f"<span>{xhtml_escape(col3)}</span>"
-                content += "</span>"
+                if col[1].strip() != "":
+                    # skip empty col3 
+                    content += "<span class='col3'>"
+                    for col3 in col[1].split(" "):
+                        if col3.strip() != "":
+                            content += f"<span>{xhtml_escape(col3)}</span>"
+                    content += "</span>"
             else:
                 # regel without columns
                 """ replace optional ";" with ":" to prevent splitting and alignment """

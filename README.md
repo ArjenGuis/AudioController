@@ -14,6 +14,9 @@ The userinferface is created in the Dutch language. It consists of 4 pages; Audi
 ## Settings screen
 <img src="docs/pictures/screenshot_2.png" alt="drawing" width="700"/>
 <p>
+Per destination, an Icecast/file stream can override the default ffmpeg audio settings by appending `;bitrate;channels` to the configured URL. For example, `icecast://source:password@example.org:8000/mount;128K;mono` streams that destination at 128K mono. Supported channel values are `mono`, `stereo`, `1`, and `2`; if omitted, ffmpeg keeps its default channel layout.
+
+The URL itself must not contain a `;` (an Icecast password containing a semicolon silently truncates the URL, causing ffmpeg to fail and restart every few seconds for no apparent reason), and an unrecognized value silently defaults to the standard setting—so `url;128K;3` simply results in stereo.
 
 ## Psalmbord screen
 <img src="docs/pictures/screenshot_3.png" alt="drawing" width="700"/>
@@ -254,7 +257,6 @@ User Linux as host. Windows is also possible, but not covered by this manual.
 
 To read or write audio from/to an url, install ffmpeg.
 
-Per destination, an Icecast/file stream can override the default ffmpeg audio settings by appending `;bitrate;channels` to the configured URL. For example, `icecast://source:password@example.org:8000/mount;128K;mono` streams that destination at 128K mono. Supported channel values are `mono`, `stereo`, `1`, and `2`; if omitted, ffmpeg keeps its default channel layout.
 
 ...
 

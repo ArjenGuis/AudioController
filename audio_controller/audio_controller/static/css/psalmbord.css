@@ -130,8 +130,9 @@ body {
     vertical-align: top;
 }
 .regel .no-col {
-    padding: 0 1.5vw;
-    white-space: pre;
+    padding: 0 1.5vw 0 6.5vw;
+    text-indent: -5vw;
+    
 }
 .regel .col1 span {
     padding: 0 1.5vw;

@@ -24,7 +24,6 @@
     let container = $(".container")
     let interval = 10000 // milliseconds
     let hasFailed = false
-    let firstAlignment = true
     let html_hash = ""
 
     function update() {
@@ -38,18 +37,25 @@
                     location.reload()
                 } else {
                     interval = result["refreshrate"]*1000 // milliseconds
-                    css.html(result["css"])
+                    let align = false
+
+                    if(css.html() != result["css"]){
+                        // css content is gewijzigd
+                        css.html(result["css"])
+                        align = true
+                    }
+
                     if(result["html_hash"] !== undefined){
                         // html content en hash alleen verversen als gewijzigde content aangeleverd is
                         html_hash = result["html_hash"]
                         container.html(result["html"])
+                        align = true
                     }
-                    if(firstAlignment && interval > 2000){
-                        // de eerste keer de alignment vertragen, zodat pagina volledig geladen is
-                        // dit is alleen zinvol als de ingestelde interval >2sec is
-                        setTimeout(alignment, 2000 )
-                    } else {
+
+                    if(align){
+                        // align regels herhaal alignment eenmalig na 1s
                         alignment()
+                        setTimeout(alignment, 1000)
                     }
                     setTimeout(update, interval)
                 }
@@ -103,7 +109,6 @@
                 }
             }
         })
-        firstAlignment = false;
     }
 
 	function resolution(){
